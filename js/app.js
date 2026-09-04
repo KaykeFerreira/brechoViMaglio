@@ -25,6 +25,15 @@ let fotoSelecionada = null;
 
 
 // =====================================================
+// FILTROS DA VITRINE
+// =====================================================
+
+let categoriaAtual = 'todas';
+let buscaAtual = '';
+let ordenacaoAtual = 'recentes';
+
+
+// =====================================================
 // CARREGAR PRODUTOS DO FIRESTORE
 // =====================================================
 
@@ -91,6 +100,174 @@ function thumbHtml(p) {
 
 
 // =====================================================
+// OBTER PRODUTOS FILTRADOS
+// =====================================================
+
+function obterProdutosVisiveis() {
+
+  let resultado = [...produtos];
+
+
+  // ===================================================
+  // FILTRO POR CATEGORIA
+  // ===================================================
+
+  if (categoriaAtual !== 'todas') {
+
+    resultado = resultado.filter(p => {
+
+      const categoria =
+        String(p.cat || '').trim().toLowerCase();
+
+      const filtro =
+        categoriaAtual.trim().toLowerCase();
+
+      return categoria === filtro;
+
+    });
+
+  }
+
+
+  // ===================================================
+  // BUSCA POR NOME OU CATEGORIA
+  // ===================================================
+
+  if (buscaAtual) {
+
+    const busca =
+      buscaAtual.toLowerCase().trim();
+
+    resultado = resultado.filter(p => {
+
+      const nome =
+        String(p.nome || '').toLowerCase();
+
+      const categoria =
+        String(p.cat || '').toLowerCase();
+
+      return (
+        nome.includes(busca) ||
+        categoria.includes(busca)
+      );
+
+    });
+
+  }
+
+
+  // ===================================================
+  // ORDENAÇÃO
+  // ===================================================
+
+  if (ordenacaoAtual === 'menor-preco') {
+
+    resultado.sort(
+      (a, b) =>
+        Number(a.preco) - Number(b.preco)
+    );
+
+  }
+
+
+  else if (ordenacaoAtual === 'maior-preco') {
+
+    resultado.sort(
+      (a, b) =>
+        Number(b.preco) - Number(a.preco)
+    );
+
+  }
+
+
+  else if (ordenacaoAtual === 'az') {
+
+    resultado.sort(
+      (a, b) =>
+        String(a.nome || '').localeCompare(
+          String(b.nome || ''),
+          'pt-BR'
+        )
+    );
+
+  }
+
+
+  else if (ordenacaoAtual === 'za') {
+
+    resultado.sort(
+      (a, b) =>
+        String(b.nome || '').localeCompare(
+          String(a.nome || ''),
+          'pt-BR'
+        )
+    );
+
+  }
+
+
+  // "recentes" mantém a ordem original
+  // recebida do Firestore.
+
+
+  return resultado;
+
+}
+
+
+// =====================================================
+// ATUALIZAR TEXTO DOS RESULTADOS
+// =====================================================
+
+function atualizarResultadoFiltros(total) {
+
+  const resultadoEl =
+    document.getElementById('resultadoFiltros');
+
+  if (!resultadoEl) return;
+
+
+  const existeFiltro =
+    categoriaAtual !== 'todas' ||
+    buscaAtual !== '';
+
+
+  if (!existeFiltro) {
+
+    resultadoEl.textContent = '';
+
+    return;
+
+  }
+
+
+  if (total === 0) {
+
+    resultadoEl.textContent =
+      'Nenhuma peça encontrada.';
+
+    return;
+
+  }
+
+
+  if (total === 1) {
+
+    resultadoEl.textContent =
+      '1 peça encontrada.';
+
+    return;
+
+  }
+
+
+  resultadoEl.textContent =
+    `${total} peças encontradas.`;
+
+}
+
+
+// =====================================================
 // RENDERIZAR PRODUTOS
 // =====================================================
 
@@ -99,80 +276,184 @@ function renderGrid() {
   const grid =
     document.getElementById('gridProdutos');
 
-  grid.innerHTML = produtos.map(p => `
 
-    <div class="card">
+  const produtosVisiveis =
+    obterProdutosVisiveis();
 
-      <div class="card-thumb ${p.foto ? '' : p.cor || 'g1'}">
 
-        ${thumbHtml(p)}
+  atualizarResultadoFiltros(
+    produtosVisiveis.length
+  );
 
-        <span class="card-tag">
-          ${p.cat || 'Novidade'}
+
+  // ===================================================
+  // NENHUM PRODUTO ENCONTRADO
+  // ===================================================
+
+  if (produtosVisiveis.length === 0) {
+
+    grid.innerHTML = `
+
+      <div
+        class="nenhum-produto"
+        style="grid-column:1/-1;"
+      >
+
+        <strong>
+          Nenhuma peça encontrada
+        </strong>
+
+        <span>
+          Tente buscar por outro nome
+          ou escolher outra categoria.
         </span>
-
-        <div class="card-admin-actions">
-
-          <button
-            class="editar-btn"
-            data-id="${p.id}"
-            aria-label="Editar ${p.nome}">
-            ✎
-          </button>
-
-          <button
-            class="excluir-btn"
-            data-id="${p.id}"
-            aria-label="Excluir ${p.nome}">
-            ✕
-          </button>
-
-        </div>
 
       </div>
 
-      <div class="card-body">
+    `;
 
-        <span class="card-cat">
-          brechó · tamanho único
-        </span>
 
-        <h3 class="card-nome">
-          ${p.nome}
-        </h3>
+    // O botão de adicionar precisa continuar
+    // aparecendo para o administrador.
 
-        <div class="card-footer">
+    if (
+      document.body.classList.contains('modo-admin')
+    ) {
 
-          <span class="card-preco">
-            ${formatar(p.preco)}
+      grid.innerHTML += `
+
+        <button
+          class="card-nova"
+          id="abrirNovoProduto"
+        >
+
+          <span>+</span>
+
+          Adicionar peça
+
+        </button>
+
+      `;
+
+      document
+        .getElementById('abrirNovoProduto')
+        ?.addEventListener(
+          'click',
+          () => abrirModal(null)
+        );
+
+    }
+
+    return;
+
+  }
+
+
+  // ===================================================
+  // PRODUTOS
+  // ===================================================
+
+  grid.innerHTML =
+    produtosVisiveis.map(p => `
+
+      <div class="card">
+
+        <div
+          class="card-thumb ${p.foto ? '' : p.cor || 'g1'}"
+        >
+
+          ${thumbHtml(p)}
+
+
+          <span class="card-tag">
+            ${p.cat || 'Novidade'}
           </span>
 
-          <button
-            class="add-btn"
-            data-id="${p.id}"
-            aria-label="Adicionar ${p.nome} à sacola">
-            +
-          </button>
+
+          <div class="card-admin-actions">
+
+            <button
+              class="editar-btn"
+              data-id="${p.id}"
+              aria-label="Editar ${p.nome}"
+            >
+              ✎
+            </button>
+
+
+            <button
+              class="excluir-btn"
+              data-id="${p.id}"
+              aria-label="Excluir ${p.nome}"
+            >
+              ✕
+            </button>
+
+          </div>
+
+        </div>
+
+
+        <div class="card-body">
+
+          <span class="card-cat">
+            brechó · tamanho único
+          </span>
+
+
+          <h3 class="card-nome">
+            ${p.nome}
+          </h3>
+
+
+          <div class="card-footer">
+
+            <span class="card-preco">
+              ${formatar(p.preco)}
+            </span>
+
+
+            <button
+              class="add-btn"
+              data-id="${p.id}"
+              aria-label="Adicionar ${p.nome} à sacola"
+            >
+              +
+            </button>
+
+          </div>
 
         </div>
 
       </div>
 
-    </div>
+    `).join('');
 
-  `).join('') + `
 
-    <button
-      class="card-nova"
-      id="abrirNovoProduto">
+  // ===================================================
+  // BOTÃO ADMIN
+  // ===================================================
 
-      <span>+</span>
+  if (
+    document.body.classList.contains('modo-admin')
+  ) {
 
-      Adicionar peça
+    grid.innerHTML += `
 
-    </button>
+      <button
+        class="card-nova"
+        id="abrirNovoProduto"
+      >
 
-  `;
+        <span>+</span>
+
+        Adicionar peça
+
+      </button>
+
+    `;
+
+  }
 
 
   document
@@ -181,6 +462,197 @@ function renderGrid() {
       'click',
       () => abrirModal(null)
     );
+
+}
+
+
+// =====================================================
+// FILTROS — CATEGORIAS
+// =====================================================
+
+const filtrosCategoria =
+  document.querySelectorAll(
+    '.filtro-categoria'
+  );
+
+
+filtrosCategoria.forEach(botao => {
+
+  botao.addEventListener(
+    'click',
+    () => {
+
+      categoriaAtual =
+        botao.dataset.categoria ||
+        'todas';
+
+
+      // Remove seleção anterior
+
+      filtrosCategoria.forEach(item => {
+
+        item.classList.remove('selecionado');
+
+      });
+
+
+      // Seleciona botão atual
+
+      botao.classList.add(
+        'selecionado'
+      );
+
+
+      renderGrid();
+
+
+      // Leva o usuário para os produtos
+
+      document
+        .getElementById('produtos')
+        ?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start'
+        });
+
+    }
+  );
+
+});
+
+
+// =====================================================
+// BUSCA
+// =====================================================
+
+const campoBusca =
+  document.getElementById(
+    'campoBusca'
+  );
+
+
+if (campoBusca) {
+
+  campoBusca.addEventListener(
+    'input',
+    () => {
+
+      buscaAtual =
+        campoBusca.value.trim();
+
+
+      renderGrid();
+
+    }
+  );
+
+}
+
+
+// =====================================================
+// ORDENAÇÃO
+// =====================================================
+
+const ordenarProdutos =
+  document.getElementById(
+    'ordenarProdutos'
+  );
+
+
+if (ordenarProdutos) {
+
+  ordenarProdutos.addEventListener(
+    'change',
+    () => {
+
+      ordenacaoAtual =
+        ordenarProdutos.value;
+
+
+      renderGrid();
+
+    }
+  );
+
+}
+
+
+// =====================================================
+// VER TUDO
+// =====================================================
+
+const verTudo =
+  document.getElementById(
+    'verTudo'
+  );
+
+
+if (verTudo) {
+
+  verTudo.addEventListener(
+    'click',
+    e => {
+
+      e.preventDefault();
+
+
+      categoriaAtual =
+        'todas';
+
+      buscaAtual =
+        '';
+
+      ordenacaoAtual =
+        'recentes';
+
+
+      if (campoBusca) {
+
+        campoBusca.value = '';
+
+      }
+
+
+      if (ordenarProdutos) {
+
+        ordenarProdutos.value =
+          'recentes';
+
+      }
+
+
+      filtrosCategoria.forEach(botao => {
+
+        botao.classList.remove(
+          'selecionado'
+        );
+
+      });
+
+
+      const todas =
+        document.querySelector(
+          '.filtro-categoria[data-categoria="todas"]'
+        );
+
+
+      todas?.classList.add(
+        'selecionado'
+      );
+
+
+      renderGrid();
+
+
+      document
+        .getElementById('produtos')
+        ?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start'
+        });
+
+    }
+  );
 
 }
 
@@ -219,7 +691,9 @@ function renderCarrinho() {
 
         <div class="item">
 
-          <div class="item-thumb ${item.foto ? '' : item.cor || 'g1'}">
+          <div
+            class="item-thumb ${item.foto ? '' : item.cor || 'g1'}"
+          >
 
             ${
               item.foto
@@ -229,19 +703,23 @@ function renderCarrinho() {
 
           </div>
 
+
           <div class="item-info">
 
             <div class="nome">
               ${item.nome}
             </div>
 
+
             <div class="preco">
               ${formatar(item.preco)}
             </div>
 
+
             <button
               class="remover-btn"
-              data-index="${i}">
+              data-index="${i}"
+            >
               remover
             </button>
 
@@ -530,6 +1008,8 @@ document
           'Login realizado com sucesso!'
         );
 
+        renderGrid();
+
       } else {
 
         document.body.classList.remove(
@@ -567,6 +1047,8 @@ observarLogin(
 
     }
 
+    renderGrid();
+
   }
 );
 
@@ -588,6 +1070,8 @@ document
         document.body.classList.remove(
           'modo-admin'
         );
+
+        renderGrid();
 
       } catch (erro) {
 
@@ -633,15 +1117,6 @@ const previewFoto =
 // MÁSCARA DE PREÇO
 // =====================================================
 
-// Esta variável guarda o valor exatamente
-// como o usuário está digitando.
-//
-// Exemplos:
-//
-// 1500
-// 1500,5
-// 1500,50
-
 let valorDigitado = '';
 
 
@@ -680,8 +1155,6 @@ function atualizarMascaraPreco() {
   }
 
 
-  // Remove zeros desnecessários
-  // mas mantém um único zero
   reais =
     String(
       Number(reais)
@@ -694,8 +1167,6 @@ function atualizarMascaraPreco() {
     );
 
 
-  // Se existe vírgula,
-  // mantém a vírgula visível.
   if (partes.length > 1) {
 
     campoPreco.value =
@@ -713,25 +1184,9 @@ function atualizarMascaraPreco() {
   }
 
 
-  // Coloca o cursor antes dos centavos
-  // quando houver vírgula.
-  //
-  // Assim:
-  //
-  // R$ 1500|
-  //
-  // vira:
-  //
-  // R$ 1.500|
-  //
-  // e:
-  //
-  // R$ 1.500,5|
-  //
-  // continua acompanhando.
-
   const posicao =
     campoPreco.value.length;
+
 
   campoPreco.setSelectionRange(
     posicao,
@@ -749,10 +1204,6 @@ campoPreco.addEventListener(
   'keydown',
   e => {
 
-    // -----------------------------------------------
-    // CTRL / COMMAND
-    // -----------------------------------------------
-
     if (
       e.ctrlKey ||
       e.metaKey
@@ -761,10 +1212,6 @@ campoPreco.addEventListener(
       return;
     }
 
-
-    // -----------------------------------------------
-    // TECLAS DE CONTROLE
-    // -----------------------------------------------
 
     if (
       [
@@ -808,8 +1255,6 @@ campoPreco.addEventListener(
 
         } else {
 
-          // Se não há mais centavos,
-          // remove a vírgula.
           valorDigitado =
             partes[0];
 
@@ -856,8 +1301,6 @@ campoPreco.addEventListener(
     // PONTO
     // -----------------------------------------------
 
-    // Se o usuário digitar ponto,
-    // também tratamos como vírgula.
     if (e.key === '.') {
 
       e.preventDefault();
@@ -890,10 +1333,6 @@ campoPreco.addEventListener(
         valorDigitado.split(',');
 
 
-      // ---------------------------------------------
-      // DIGITANDO CENTAVOS
-      // ---------------------------------------------
-
       if (
         partes.length > 1
       ) {
@@ -911,10 +1350,6 @@ campoPreco.addEventListener(
 
       }
 
-
-      // ---------------------------------------------
-      // DIGITANDO REAIS
-      // ---------------------------------------------
 
       else {
 
@@ -975,7 +1410,6 @@ campoPreco.addEventListener(
         .replace('.', ',');
 
 
-    // Mantém no máximo 2 casas
     if (
       valorDigitado.includes(',')
     ) {
@@ -1257,7 +1691,6 @@ document
 
       try {
 
-
         // =================================================
         // EDITAR PRODUTO
         // =================================================
@@ -1309,12 +1742,14 @@ document
           }
 
 
-        } else {
+        }
 
 
-          // =================================================
-          // NOVO PRODUTO
-          // =================================================
+        // =================================================
+        // NOVO PRODUTO
+        // =================================================
+
+        else {
 
           const novoProduto = {
 
