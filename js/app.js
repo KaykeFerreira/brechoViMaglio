@@ -1,4 +1,3 @@
-```javascript
 import {
   buscarProdutos,
   adicionarProduto,
@@ -24,60 +23,46 @@ import { db } from "../firebase/config.js";
 // CONFIGURAÇÕES
 // =====================================================
 
-const CORES_FALLBACK = ['g1', 'g2', 'g3', 'g4'];
+const CORES_FALLBACK = ["g1", "g2", "g3", "g4"];
 
 let produtos = [];
 let carrinho = [];
 let editandoId = null;
 let fotoSelecionada = null;
 
-
-// =====================================================
-// FILTROS DA VITRINE
-// =====================================================
-
-let categoriaAtual = 'todas';
-let buscaAtual = '';
-let ordenacaoAtual = 'recentes';
+let categoriaAtual = "todas";
+let buscaAtual = "";
+let ordenacaoAtual = "recentes";
 
 
 // =====================================================
-// VERIFICAR STATUS
+// STATUS DO PRODUTO
 // =====================================================
 
 function produtoDisponivel(produto) {
-
-  return (
-    !produto.status ||
-    produto.status === 'disponivel'
-  );
-
+  return !produto.status || produto.status === "disponivel";
 }
 
-
 function produtoVendido(produto) {
-
-  return produto.status === 'vendido';
-
+  return produto.status === "vendido";
 }
 
 
 // =====================================================
-// CARREGAR PRODUTOS DO FIRESTORE
+// CARREGAR PRODUTOS
 // =====================================================
 
 async function carregarProdutos() {
-
-  const grid =
-    document.getElementById('gridProdutos');
+  const grid = document.getElementById("gridProdutos");
 
   try {
-
-    grid.innerHTML = `
-      <p style="color:var(--tinta-suave); grid-column:1/-1;">
-        Carregando peças...
-      </p>
-    `;
+    if (grid) {
+      grid.innerHTML = `
+        <p class="mensagem-produtos">
+          Carregando peças...
+        </p>
+      `;
+    }
 
     produtos = await buscarProdutos();
 
@@ -85,25 +70,21 @@ async function carregarProdutos() {
     renderVendidos();
 
   } catch (erro) {
+    console.error("Erro ao carregar produtos:", erro);
 
-    console.error(
-      "Erro ao carregar produtos:",
-      erro
-    );
-
-    grid.innerHTML = `
-      <p style="color:var(--tinta-suave); grid-column:1/-1;">
-        Não foi possível carregar os produtos.
-      </p>
-    `;
+    if (grid) {
+      grid.innerHTML = `
+        <p class="mensagem-produtos">
+          Não foi possível carregar os produtos.
+        </p>
+      `;
+    }
 
     alert(
       "Não consegui conectar ao banco de produtos. " +
       "Verifique a configuração do Firebase."
     );
-
   }
-
 }
 
 
@@ -111,14 +92,14 @@ async function carregarProdutos() {
 // FORMATAÇÃO
 // =====================================================
 
-function formatar(v) {
-
-  return 'R$ ' +
-    Number(v).toLocaleString('pt-BR', {
+function formatar(valor) {
+  return (
+    "R$ " +
+    Number(valor).toLocaleString("pt-BR", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
-    });
-
+    })
+  );
 }
 
 
@@ -126,175 +107,116 @@ function formatar(v) {
 // FOTO
 // =====================================================
 
-function thumbHtml(p) {
+function thumbHtml(produto) {
+  if (!produto.foto) return "";
 
-  return p.foto
-    ? `<img src="${p.foto}" alt="${p.nome}">`
-    : '';
-
+  return `<img src="${produto.foto}" alt="${produto.nome || ""}">`;
 }
 
 
 // =====================================================
-// OBTER PRODUTOS FILTRADOS
+// PRODUTOS VISÍVEIS
 // =====================================================
 
 function obterProdutosVisiveis() {
+  let resultado = produtos.filter(produtoDisponivel);
 
-  let resultado = produtos.filter(
-    produto => produtoDisponivel(produto)
-  );
+  if (categoriaAtual !== "todas") {
+    resultado = resultado.filter((produto) => {
+      const categoria = String(produto.cat || "")
+        .trim()
+        .toLowerCase();
 
-
-  // ===================================================
-  // FILTRO POR CATEGORIA
-  // ===================================================
-
-  if (categoriaAtual !== 'todas') {
-
-    resultado = resultado.filter(p => {
-
-      const categoria =
-        String(p.cat || '').trim().toLowerCase();
-
-      const filtro =
-        categoriaAtual.trim().toLowerCase();
+      const filtro = categoriaAtual
+        .trim()
+        .toLowerCase();
 
       return categoria === filtro;
-
     });
-
   }
 
-
-  // ===================================================
-  // BUSCA POR NOME OU CATEGORIA
-  // ===================================================
-
   if (buscaAtual) {
+    const busca = buscaAtual
+      .toLowerCase()
+      .trim();
 
-    const busca =
-      buscaAtual.toLowerCase().trim();
+    resultado = resultado.filter((produto) => {
+      const nome = String(produto.nome || "")
+        .toLowerCase();
 
-    resultado = resultado.filter(p => {
-
-      const nome =
-        String(p.nome || '').toLowerCase();
-
-      const categoria =
-        String(p.cat || '').toLowerCase();
+      const categoria = String(produto.cat || "")
+        .toLowerCase();
 
       return (
         nome.includes(busca) ||
         categoria.includes(busca)
       );
-
     });
-
   }
 
-
-  // ===================================================
-  // ORDENAÇÃO
-  // ===================================================
-
-  if (ordenacaoAtual === 'menor-preco') {
-
+  if (ordenacaoAtual === "menor-preco") {
     resultado.sort(
-      (a, b) =>
-        Number(a.preco) - Number(b.preco)
+      (a, b) => Number(a.preco) - Number(b.preco)
     );
-
   }
 
-  else if (ordenacaoAtual === 'maior-preco') {
-
+  if (ordenacaoAtual === "maior-preco") {
     resultado.sort(
-      (a, b) =>
-        Number(b.preco) - Number(a.preco)
+      (a, b) => Number(b.preco) - Number(a.preco)
     );
-
   }
 
-  else if (ordenacaoAtual === 'az') {
-
-    resultado.sort(
-      (a, b) =>
-        String(a.nome || '').localeCompare(
-          String(b.nome || ''),
-          'pt-BR'
-        )
+  if (ordenacaoAtual === "az") {
+    resultado.sort((a, b) =>
+      String(a.nome || "").localeCompare(
+        String(b.nome || ""),
+        "pt-BR"
+      )
     );
-
   }
 
-  else if (ordenacaoAtual === 'za') {
-
-    resultado.sort(
-      (a, b) =>
-        String(b.nome || '').localeCompare(
-          String(a.nome || ''),
-          'pt-BR'
-        )
+  if (ordenacaoAtual === "za") {
+    resultado.sort((a, b) =>
+      String(b.nome || "").localeCompare(
+        String(a.nome || ""),
+        "pt-BR"
+      )
     );
-
   }
-
 
   return resultado;
-
 }
 
 
 // =====================================================
-// ATUALIZAR TEXTO DOS RESULTADOS
+// RESULTADO DOS FILTROS
 // =====================================================
 
 function atualizarResultadoFiltros(total) {
+  const elemento = document.getElementById("resultadoFiltros");
 
-  const resultadoEl =
-    document.getElementById('resultadoFiltros');
-
-  if (!resultadoEl) return;
-
+  if (!elemento) return;
 
   const existeFiltro =
-    categoriaAtual !== 'todas' ||
-    buscaAtual !== '';
-
+    categoriaAtual !== "todas" ||
+    buscaAtual !== "";
 
   if (!existeFiltro) {
-
-    resultadoEl.textContent = '';
-
+    elemento.textContent = "";
     return;
-
   }
-
 
   if (total === 0) {
-
-    resultadoEl.textContent =
-      'Nenhuma peça encontrada.';
-
+    elemento.textContent = "Nenhuma peça encontrada.";
     return;
-
   }
-
 
   if (total === 1) {
-
-    resultadoEl.textContent =
-      '1 peça encontrada.';
-
+    elemento.textContent = "1 peça encontrada.";
     return;
-
   }
 
-
-  resultadoEl.textContent =
-    `${total} peças encontradas.`;
-
+  elemento.textContent = `${total} peças encontradas.`;
 }
 
 
@@ -303,130 +225,106 @@ function atualizarResultadoFiltros(total) {
 // =====================================================
 
 function renderGrid() {
-
-  const grid =
-    document.getElementById('gridProdutos');
+  const grid = document.getElementById("gridProdutos");
 
   if (!grid) return;
 
+  const produtosVisiveis = obterProdutosVisiveis();
 
-  const produtosVisiveis =
-    obterProdutosVisiveis();
+  atualizarResultadoFiltros(produtosVisiveis.length);
 
-
-  atualizarResultadoFiltros(
-    produtosVisiveis.length
-  );
-
-
-  // ===================================================
-  // NENHUM PRODUTO ENCONTRADO
-  // ===================================================
+  const adminAtivo =
+    document.body.classList.contains("modo-admin");
 
   if (produtosVisiveis.length === 0) {
-
     grid.innerHTML = `
-
-      <div
-        class="nenhum-produto"
-        style="grid-column:1/-1;"
-      >
-
-        <strong>
-          Nenhuma peça encontrada
-        </strong>
-
+      <div class="nenhum-produto">
+        <strong>Nenhuma peça encontrada</strong>
         <span>
           Tente buscar por outro nome
           ou escolher outra categoria.
         </span>
-
       </div>
-
     `;
 
-
-    if (
-      document.body.classList.contains('modo-admin')
-    ) {
-
+    if (adminAtivo) {
       grid.innerHTML += `
-
-        <button
-          class="card-nova"
-          id="abrirNovoProduto"
-        >
-
+        <button class="card-nova" id="abrirNovoProduto">
           <span>+</span>
-
           Adicionar peça
-
         </button>
-
       `;
 
       document
-        .getElementById('abrirNovoProduto')
-        ?.addEventListener(
-          'click',
-          () => abrirModal(null)
-        );
-
+        .getElementById("abrirNovoProduto")
+        ?.addEventListener("click", () => {
+          abrirModal(null);
+        });
     }
 
     return;
-
   }
 
+  let html = "";
 
-  // ===================================================
-  // PRODUTOS DISPONÍVEIS
-  // ===================================================
+  produtosVisiveis.forEach((produto) => {
+    const classeCor =
+      produto.foto
+        ? ""
+        : produto.cor || "g1";
 
-  grid.innerHTML =
-    produtosVisiveis.map(p => `
+    let botoesAdmin = "";
 
+    if (adminAtivo) {
+      botoesAdmin = `
+        <div class="card-admin-actions">
+          <button
+            class="editar-btn"
+            data-id="${produto.id}"
+            aria-label="Editar ${produto.nome}"
+          >
+            ✎
+          </button>
+
+          <button
+            class="excluir-btn"
+            data-id="${produto.id}"
+            aria-label="Excluir ${produto.nome}"
+          >
+            ✕
+          </button>
+        </div>
+      `;
+    }
+
+    let botaoVendido = "";
+
+    if (adminAtivo) {
+      botaoVendido = `
+        <button
+          class="marcar-vendido-btn"
+          data-id="${produto.id}"
+          type="button"
+        >
+          ✓ Marcar como vendido
+        </button>
+      `;
+    }
+
+    html += `
       <div class="card">
 
-        <div
-          class="card-thumb ${p.foto ? '' : p.cor || 'g1'}"
-        >
+        <div class="card-thumb ${classeCor}">
 
-          ${thumbHtml(p)}
+          ${thumbHtml(produto)}
 
           <span class="card-tag">
-            ${p.cat || 'Novidade'}
+            ${produto.cat || "Novidade"}
           </span>
 
-
-          ${
-            document.body.classList.contains('modo-admin')
-              ? `
-                <div class="card-admin-actions">
-
-                  <button
-                    class="editar-btn"
-                    data-id="${p.id}"
-                    aria-label="Editar ${p.nome}"
-                  >
-                    ✎
-                  </button>
-
-                  <button
-                    class="excluir-btn"
-                    data-id="${p.id}"
-                    aria-label="Excluir ${p.nome}"
-                  >
-                    ✕
-                  </button>
-
-                </div>
-              `
-              : ''
-          }
+          ${botoesAdmin}
 
         </div>
-
 
         <div class="card-body">
 
@@ -434,142 +332,115 @@ function renderGrid() {
             brechó · tamanho único
           </span>
 
-
           <h3 class="card-nome">
-            ${p.nome}
+            ${produto.nome}
           </h3>
-
 
           <div class="card-footer">
 
             <span class="card-preco">
-              ${formatar(p.preco)}
+              ${formatar(produto.preco)}
             </span>
-
 
             <button
               class="add-btn"
-              data-id="${p.id}"
-              aria-label="Adicionar ${p.nome} à sacola"
+              data-id="${produto.id}"
+              aria-label="Adicionar ${produto.nome} à sacola"
             >
               +
             </button>
 
           </div>
 
-
-          ${
-            document.body.classList.contains('modo-admin')
-              ? `
-                <button
-                  class="marcar-vendido-btn"
-                  data-id="${p.id}"
-                  type="button"
-                >
-                  ✓ Marcar como vendido
-                </button>
-              `
-              : ''
-          }
+          ${botaoVendido}
 
         </div>
 
       </div>
+    `;
+  });
 
-    `).join('');
-
-
-  // ===================================================
-  // BOTÃO NOVA PEÇA
-  // ===================================================
-
-  if (
-    document.body.classList.contains('modo-admin')
-  ) {
-
-    grid.innerHTML += `
-
+  if (adminAtivo) {
+    html += `
       <button
         class="card-nova"
         id="abrirNovoProduto"
       >
-
         <span>+</span>
-
         Adicionar peça
-
       </button>
-
     `;
-
   }
 
+  grid.innerHTML = html;
 
   document
-    .getElementById('abrirNovoProduto')
-    ?.addEventListener(
-      'click',
-      () => abrirModal(null)
-    );
-
+    .getElementById("abrirNovoProduto")
+    ?.addEventListener("click", () => {
+      abrirModal(null);
+    });
 }
 
 
 // =====================================================
-// RENDERIZAR PEÇAS VENDIDAS
+// RENDERIZAR VENDIDOS
 // =====================================================
 
 function renderVendidos() {
-
-  const grid =
-    document.getElementById('gridVendidos');
+  const grid = document.getElementById("gridVendidos");
 
   if (!grid) return;
 
-
   const vendidos =
-    produtos.filter(
-      produto => produtoVendido(produto)
-    );
-
+    produtos.filter(produtoVendido);
 
   if (vendidos.length === 0) {
-
     grid.innerHTML = `
-
-      <p
-        style="
-          color:var(--tinta-suave);
-          grid-column:1/-1;
-        "
-      >
+      <p class="mensagem-produtos">
         Ainda não temos peças vendidas por aqui.
       </p>
-
     `;
 
     return;
-
   }
 
+  const adminAtivo =
+    document.body.classList.contains("modo-admin");
 
-  grid.innerHTML =
-    vendidos.map(p => `
+  let html = "";
 
+  vendidos.forEach((produto) => {
+    const classeCor =
+      produto.foto
+        ? ""
+        : produto.cor || "g1";
+
+    let botao = "";
+
+    if (adminAtivo) {
+      botao = `
+        <button
+          class="voltar-disponivel-btn"
+          data-id="${produto.id}"
+          type="button"
+        >
+          ↺ Voltar para disponível
+        </button>
+      `;
+    }
+
+    html += `
       <div class="card vendido-card">
 
-        <div
-          class="card-thumb ${p.foto ? '' : p.cor || 'g1'}"
-        >
+        <div class="card-thumb ${classeCor}">
 
-          ${thumbHtml(p)}
+          ${thumbHtml(produto)}
 
           <span class="card-tag">
-            ${p.cat || 'Peça'}
+            ${produto.cat || "Peça"}
           </span>
 
         </div>
-
 
         <div class="card-body">
 
@@ -577,92 +448,57 @@ function renderVendidos() {
             peça · vendida
           </span>
 
-
           <h3 class="card-nome">
-            ${p.nome}
+            ${produto.nome}
           </h3>
-
 
           <div class="card-footer">
 
             <span class="card-preco">
-              ${formatar(p.preco)}
+              ${formatar(produto.preco)}
             </span>
 
           </div>
 
-
-          ${
-            document.body.classList.contains('modo-admin')
-              ? `
-                <button
-                  class="voltar-disponivel-btn"
-                  data-id="${p.id}"
-                  type="button"
-                >
-                  ↺ Voltar para disponível
-                </button>
-              `
-              : ''
-          }
+          ${botao}
 
         </div>
 
       </div>
+    `;
+  });
 
-    `).join('');
-
+  grid.innerHTML = html;
 }
 
 
 // =====================================================
-// FILTROS — CATEGORIAS
+// FILTROS DE CATEGORIA
 // =====================================================
 
 const filtrosCategoria =
-  document.querySelectorAll(
-    '.filtro-categoria'
-  );
+  document.querySelectorAll(".filtro-categoria");
 
+filtrosCategoria.forEach((botao) => {
+  botao.addEventListener("click", () => {
+    categoriaAtual =
+      botao.dataset.categoria || "todas";
 
-filtrosCategoria.forEach(botao => {
+    filtrosCategoria.forEach((item) => {
+      item.classList.remove("selecionado");
+    });
 
-  botao.addEventListener(
-    'click',
-    () => {
+    botao.classList.add("selecionado");
 
-      categoriaAtual =
-        botao.dataset.categoria ||
-        'todas';
+    renderGrid();
 
-
-      filtrosCategoria.forEach(item => {
-
-        item.classList.remove(
-          'selecionado'
-        );
-
+    document
+      .getElementById("produtos")
+      ?.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
       });
-
-
-      botao.classList.add(
-        'selecionado'
-      );
-
-
-      renderGrid();
-
-
-      document
-        .getElementById('produtos')
-        ?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'start'
-        });
-
-    }
-  );
-
+  });
 });
 
 
@@ -671,25 +507,15 @@ filtrosCategoria.forEach(botao => {
 // =====================================================
 
 const campoBusca =
-  document.getElementById(
-    'campoBusca'
-  );
-
+  document.getElementById("campoBusca");
 
 if (campoBusca) {
+  campoBusca.addEventListener("input", () => {
+    buscaAtual =
+      campoBusca.value.trim();
 
-  campoBusca.addEventListener(
-    'input',
-    () => {
-
-      buscaAtual =
-        campoBusca.value.trim();
-
-      renderGrid();
-
-    }
-  );
-
+    renderGrid();
+  });
 }
 
 
@@ -698,25 +524,15 @@ if (campoBusca) {
 // =====================================================
 
 const ordenarProdutos =
-  document.getElementById(
-    'ordenarProdutos'
-  );
-
+  document.getElementById("ordenarProdutos");
 
 if (ordenarProdutos) {
+  ordenarProdutos.addEventListener("change", () => {
+    ordenacaoAtual =
+      ordenarProdutos.value;
 
-  ordenarProdutos.addEventListener(
-    'change',
-    () => {
-
-      ordenacaoAtual =
-        ordenarProdutos.value;
-
-      renderGrid();
-
-    }
-  );
-
+    renderGrid();
+  });
 }
 
 
@@ -725,78 +541,43 @@ if (ordenarProdutos) {
 // =====================================================
 
 const verTudo =
-  document.getElementById(
-    'verTudo'
-  );
-
+  document.getElementById("verTudo");
 
 if (verTudo) {
+  verTudo.addEventListener("click", (e) => {
+    e.preventDefault();
 
-  verTudo.addEventListener(
-    'click',
-    e => {
+    categoriaAtual = "todas";
+    buscaAtual = "";
+    ordenacaoAtual = "recentes";
 
-      e.preventDefault();
-
-
-      categoriaAtual =
-        'todas';
-
-      buscaAtual =
-        '';
-
-      ordenacaoAtual =
-        'recentes';
-
-
-      if (campoBusca) {
-
-        campoBusca.value = '';
-
-      }
-
-
-      if (ordenarProdutos) {
-
-        ordenarProdutos.value =
-          'recentes';
-
-      }
-
-
-      filtrosCategoria.forEach(botao => {
-
-        botao.classList.remove(
-          'selecionado'
-        );
-
-      });
-
-
-      const todas =
-        document.querySelector(
-          '.filtro-categoria[data-categoria="todas"]'
-        );
-
-
-      todas?.classList.add(
-        'selecionado'
-      );
-
-
-      renderGrid();
-
-
-      document
-        .getElementById('produtos')
-        ?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'start'
-        });
-
+    if (campoBusca) {
+      campoBusca.value = "";
     }
-  );
 
+    if (ordenarProdutos) {
+      ordenarProdutos.value = "recentes";
+    }
+
+    filtrosCategoria.forEach((botao) => {
+      botao.classList.remove("selecionado");
+    });
+
+    document
+      .querySelector(
+        '.filtro-categoria[data-categoria="todas"]'
+      )
+      ?.classList.add("selecionado");
+
+    renderGrid();
+
+    document
+      .getElementById("produtos")
+      ?.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+  });
 }
 
 
@@ -805,50 +586,46 @@ if (verTudo) {
 // =====================================================
 
 function renderCarrinho() {
-
   const container =
-    document.getElementById('drawerItens');
+    document.getElementById("drawerItens");
 
   const badge =
-    document.getElementById('cartBadge');
+    document.getElementById("cartBadge");
 
   const subtotalEl =
-    document.getElementById('subtotalValor');
-
+    document.getElementById("subtotalValor");
 
   if (!container || !badge || !subtotalEl) return;
 
+  badge.textContent = carrinho.length;
 
-  badge.textContent =
-    carrinho.length;
+  if (carrinho.length === 0) {
+    container.innerHTML = `
+      <p class="item-vazio">
+        Sua sacola está vazia.
+        Que tal dar uma olhada nas novidades?
+      </p>
+    `;
+  } else {
+    let html = "";
 
+    carrinho.forEach((item, indice) => {
+      const classeCor =
+        item.foto
+          ? ""
+          : item.cor || "g1";
 
-  container.innerHTML =
-    carrinho.length === 0
+      const imagem =
+        item.foto
+          ? `<img src="${item.foto}" alt="">`
+          : "";
 
-      ? `
-        <p class="item-vazio">
-          Sua sacola está vazia.
-          Que tal dar uma olhada nas novidades?
-        </p>
-      `
-
-      : carrinho.map((item, i) => `
-
+      html += `
         <div class="item">
 
-          <div
-            class="item-thumb ${item.foto ? '' : item.cor || 'g1'}"
-          >
-
-            ${
-              item.foto
-                ? `<img src="${item.foto}" alt="">`
-                : ''
-            }
-
+          <div class="item-thumb ${classeCor}">
+            ${imagem}
           </div>
-
 
           <div class="item-info">
 
@@ -856,15 +633,13 @@ function renderCarrinho() {
               ${item.nome}
             </div>
 
-
             <div class="preco">
               ${formatar(item.preco)}
             </div>
 
-
             <button
               class="remover-btn"
-              data-index="${i}"
+              data-index="${indice}"
             >
               remover
             </button>
@@ -872,70 +647,53 @@ function renderCarrinho() {
           </div>
 
         </div>
+      `;
+    });
 
-      `).join('');
+    container.innerHTML = html;
+  }
 
-
-  subtotalEl.textContent =
-    formatar(
-      carrinho.reduce(
-        (s, i) => s + Number(i.preco),
-        0
-      )
+  const subtotal =
+    carrinho.reduce(
+      (total, item) =>
+        total + Number(item.preco),
+      0
     );
 
+  subtotalEl.textContent =
+    formatar(subtotal);
 }
 
 
 // =====================================================
-// DRAWER DO CARRINHO
+// DRAWER
 // =====================================================
 
 const drawer =
-  document.getElementById('drawer');
+  document.getElementById("drawer");
 
 const overlay =
-  document.getElementById('overlay');
-
+  document.getElementById("overlay");
 
 function abrirDrawer() {
-
-  drawer?.classList.add('aberto');
-
-  overlay?.classList.add('aberto');
-
+  drawer?.classList.add("aberto");
+  overlay?.classList.add("aberto");
 }
-
 
 function fecharDrawer() {
-
-  drawer?.classList.remove('aberto');
-
-  overlay?.classList.remove('aberto');
-
+  drawer?.classList.remove("aberto");
+  overlay?.classList.remove("aberto");
 }
 
+document
+  .getElementById("abrirCarrinho")
+  ?.addEventListener("click", abrirDrawer);
 
 document
-  .getElementById('abrirCarrinho')
-  ?.addEventListener(
-    'click',
-    abrirDrawer
-  );
+  .getElementById("fecharCarrinho")
+  ?.addEventListener("click", fecharDrawer);
 
-
-document
-  .getElementById('fecharCarrinho')
-  ?.addEventListener(
-    'click',
-    fecharDrawer
-  );
-
-
-overlay?.addEventListener(
-  'click',
-  fecharDrawer
-);
+overlay?.addEventListener("click", fecharDrawer);
 
 
 // =====================================================
@@ -943,270 +701,216 @@ overlay?.addEventListener(
 // =====================================================
 
 document
-  .getElementById('gridProdutos')
-  ?.addEventListener(
-    'click',
-    async (e) => {
+  .getElementById("gridProdutos")
+  ?.addEventListener("click", async (e) => {
 
-      const addBtn =
-        e.target.closest('.add-btn');
+    const addBtn =
+      e.target.closest(".add-btn");
 
-      const editBtn =
-        e.target.closest('.editar-btn');
+    const editBtn =
+      e.target.closest(".editar-btn");
 
-      const delBtn =
-        e.target.closest('.excluir-btn');
+    const delBtn =
+      e.target.closest(".excluir-btn");
 
-      const vendidoBtn =
-        e.target.closest('.marcar-vendido-btn');
+    const vendidoBtn =
+      e.target.closest(".marcar-vendido-btn");
 
 
-      // -----------------------------------------------
-      // ADICIONAR AO CARRINHO
-      // -----------------------------------------------
+    // =================================================
+    // ADICIONAR AO CARRINHO
+    // =================================================
 
-      if (addBtn) {
+    if (addBtn) {
+      const produto =
+        produtos.find(
+          (item) =>
+            item.id === addBtn.dataset.id
+        );
 
-        const p =
-          produtos.find(
-            x => x.id === addBtn.dataset.id
-          );
+      if (!produto) return;
 
-        if (!p) return;
+      if (!produtoDisponivel(produto)) {
+        alert("Essa peça já foi vendida.");
+        return;
+      }
 
+      const jaExiste =
+        carrinho.some(
+          (item) => item.id === produto.id
+        );
 
-        if (!produtoDisponivel(p)) {
-
-          alert(
-            'Essa peça já foi vendida.'
-          );
-
-          return;
-
-        }
-
-
-        // Evita colocar a mesma peça duas vezes
-        // na sacola.
-
-        const jaNoCarrinho =
-          carrinho.some(
-            item => item.id === p.id
-          );
-
-
-        if (jaNoCarrinho) {
-
-          alert(
-            'Essa peça já está na sua sacola.'
-          );
-
-          abrirDrawer();
-
-          return;
-
-        }
-
-
-        carrinho.push(p);
-
-        renderCarrinho();
+      if (jaExiste) {
+        alert(
+          "Essa peça já está na sua sacola."
+        );
 
         abrirDrawer();
-
         return;
-
       }
 
+      carrinho.push(produto);
 
-      // -----------------------------------------------
-      // MARCAR COMO VENDIDO
-      // -----------------------------------------------
+      renderCarrinho();
+      abrirDrawer();
 
-      if (
-        vendidoBtn &&
-        document.body.classList.contains('modo-admin')
-      ) {
-
-        const id =
-          vendidoBtn.dataset.id;
-
-        const produto =
-          produtos.find(
-            x => x.id === id
-          );
-
-        if (!produto) return;
-
-
-        if (
-          !confirm(
-            `Marcar "${produto.nome}" como vendida?`
-          )
-        ) {
-
-          return;
-
-        }
-
-
-        try {
-
-          await editarProduto(
-            id,
-            {
-              status: 'vendido'
-            }
-          );
-
-
-          const indice =
-            produtos.findIndex(
-              x => x.id === id
-            );
-
-
-          if (indice !== -1) {
-
-            produtos[indice] = {
-
-              ...produtos[indice],
-
-              status: 'vendido'
-
-            };
-
-          }
-
-
-          // Se estava na sacola, remove.
-
-          carrinho =
-            carrinho.filter(
-              item => item.id !== id
-            );
-
-
-          renderGrid();
-          renderVendidos();
-          renderCarrinho();
-
-
-          alert(
-            `"${produto.nome}" foi marcada como vendida.`
-          );
-
-
-        } catch (erro) {
-
-          console.error(
-            'Erro ao marcar produto como vendido:',
-            erro
-          );
-
-          alert(
-            'Não foi possível marcar a peça como vendida.'
-          );
-
-        }
-
-        return;
-
-      }
-
-
-      // -----------------------------------------------
-      // EDITAR
-      // -----------------------------------------------
-
-      if (
-        editBtn &&
-        document.body.classList.contains('modo-admin')
-      ) {
-
-        const produto =
-          produtos.find(
-            x => x.id === editBtn.dataset.id
-          );
-
-        if (produto) {
-
-          abrirModal(produto);
-
-        }
-
-        return;
-
-      }
-
-
-      // -----------------------------------------------
-      // EXCLUIR
-      // -----------------------------------------------
-
-      if (
-        delBtn &&
-        document.body.classList.contains('modo-admin')
-      ) {
-
-        const id =
-          delBtn.dataset.id;
-
-        const produto =
-          produtos.find(
-            x => x.id === id
-          );
-
-        if (!produto) return;
-
-
-        if (
-          confirm(
-            `Remover "${produto.nome}" da loja?`
-          )
-        ) {
-
-          try {
-
-            await excluirProduto(id);
-
-
-            produtos =
-              produtos.filter(
-                x => x.id !== id
-              );
-
-
-            carrinho =
-              carrinho.filter(
-                item => item.id !== id
-              );
-
-
-            renderGrid();
-            renderVendidos();
-            renderCarrinho();
-
-
-          } catch (erro) {
-
-            console.error(
-              "Erro ao excluir produto:",
-              erro
-            );
-
-            alert(
-              "Não foi possível excluir o produto."
-            );
-
-          }
-
-        }
-
-      }
-
+      return;
     }
-  );
+
+
+    // =================================================
+    // MARCAR COMO VENDIDO
+    // =================================================
+
+    if (
+      vendidoBtn &&
+      document.body.classList.contains("modo-admin")
+    ) {
+
+      const id =
+        vendidoBtn.dataset.id;
+
+      const produto =
+        produtos.find(
+          (item) => item.id === id
+        );
+
+      if (!produto) return;
+
+      const confirmar =
+        confirm(
+          `Marcar "${produto.nome}" como vendida?`
+        );
+
+      if (!confirmar) return;
+
+      try {
+
+        await editarProduto(id, {
+          status: "vendido"
+        });
+
+        produtos =
+          produtos.map((item) => {
+            if (item.id === id) {
+              return {
+                ...item,
+                status: "vendido"
+              };
+            }
+
+            return item;
+          });
+
+        carrinho =
+          carrinho.filter(
+            (item) => item.id !== id
+          );
+
+        renderGrid();
+        renderVendidos();
+        renderCarrinho();
+
+        alert(
+          `"${produto.nome}" foi marcada como vendida.`
+        );
+
+      } catch (erro) {
+
+        console.error(
+          "Erro ao marcar como vendido:",
+          erro
+        );
+
+        alert(
+          "Não foi possível marcar a peça como vendida."
+        );
+      }
+
+      return;
+    }
+
+
+    // =================================================
+    // EDITAR
+    // =================================================
+
+    if (
+      editBtn &&
+      document.body.classList.contains("modo-admin")
+    ) {
+
+      const produto =
+        produtos.find(
+          (item) => item.id === editBtn.dataset.id
+        );
+
+      if (produto) {
+        abrirModal(produto);
+      }
+
+      return;
+    }
+
+
+    // =================================================
+    // EXCLUIR
+    // =================================================
+
+    if (
+      delBtn &&
+      document.body.classList.contains("modo-admin")
+    ) {
+
+      const id =
+        delBtn.dataset.id;
+
+      const produto =
+        produtos.find(
+          (item) => item.id === id
+        );
+
+      if (!produto) return;
+
+      if (
+        !confirm(
+          `Remover "${produto.nome}" da loja?`
+        )
+      ) {
+        return;
+      }
+
+      try {
+
+        await excluirProduto(id);
+
+        produtos =
+          produtos.filter(
+            (item) => item.id !== id
+          );
+
+        carrinho =
+          carrinho.filter(
+            (item) => item.id !== id
+          );
+
+        renderGrid();
+        renderVendidos();
+        renderCarrinho();
+
+      } catch (erro) {
+
+        console.error(
+          "Erro ao excluir produto:",
+          erro
+        );
+
+        alert(
+          "Não foi possível excluir o produto."
+        );
+      }
+    }
+  });
 
 
 // =====================================================
@@ -1214,130 +918,97 @@ document
 // =====================================================
 
 document
-  .getElementById('drawerItens')
-  ?.addEventListener(
-    'click',
-    e => {
+  .getElementById("drawerItens")
+  ?.addEventListener("click", (e) => {
 
-      const btn =
-        e.target.closest('.remover-btn');
+    const botao =
+      e.target.closest(".remover-btn");
 
-      if (!btn) return;
+    if (!botao) return;
 
+    carrinho.splice(
+      Number(botao.dataset.index),
+      1
+    );
 
-      carrinho.splice(
-        Number(btn.dataset.index),
-        1
-      );
-
-
-      renderCarrinho();
-
-    }
-  );
+    renderCarrinho();
+  });
 
 
 // =====================================================
-// VOLTAR PEÇA VENDIDA PARA DISPONÍVEL
+// VOLTAR PARA DISPONÍVEL
 // =====================================================
 
 document
-  .getElementById('gridVendidos')
-  ?.addEventListener(
-    'click',
-    async e => {
+  .getElementById("gridVendidos")
+  ?.addEventListener("click", async (e) => {
 
-      const btn =
-        e.target.closest(
-          '.voltar-disponivel-btn'
-        );
+    const botao =
+      e.target.closest(
+        ".voltar-disponivel-btn"
+      );
 
-      if (!btn) return;
+    if (!botao) return;
 
-
-      if (
-        !document.body.classList.contains(
-          'modo-admin'
-        )
-      ) {
-
-        return;
-
-      }
-
-
-      const id =
-        btn.dataset.id;
-
-
-      const produto =
-        produtos.find(
-          x => x.id === id
-        );
-
-
-      if (!produto) return;
-
-
-      if (
-        !confirm(
-          `Voltar "${produto.nome}" para a vitrine?`
-        )
-      ) {
-
-        return;
-
-      }
-
-
-      try {
-
-        await editarProduto(
-          id,
-          {
-            status: 'disponivel'
-          }
-        );
-
-
-        const indice =
-          produtos.findIndex(
-            x => x.id === id
-          );
-
-
-        if (indice !== -1) {
-
-          produtos[indice] = {
-
-            ...produtos[indice],
-
-            status: 'disponivel'
-
-          };
-
-        }
-
-
-        renderGrid();
-        renderVendidos();
-
-
-      } catch (erro) {
-
-        console.error(
-          'Erro ao voltar produto:',
-          erro
-        );
-
-        alert(
-          'Não foi possível voltar a peça para disponível.'
-        );
-
-      }
-
+    if (
+      !document.body.classList.contains(
+        "modo-admin"
+      )
+    ) {
+      return;
     }
-  );
+
+    const id =
+      botao.dataset.id;
+
+    const produto =
+      produtos.find(
+        (item) => item.id === id
+      );
+
+    if (!produto) return;
+
+    if (
+      !confirm(
+        `Voltar "${produto.nome}" para a vitrine?`
+      )
+    ) {
+      return;
+    }
+
+    try {
+
+      await editarProduto(id, {
+        status: "disponivel"
+      });
+
+      produtos =
+        produtos.map((item) => {
+          if (item.id === id) {
+            return {
+              ...item,
+              status: "disponivel"
+            };
+          }
+
+          return item;
+        });
+
+      renderGrid();
+      renderVendidos();
+
+    } catch (erro) {
+
+      console.error(
+        "Erro ao voltar produto:",
+        erro
+      );
+
+      alert(
+        "Não foi possível voltar a peça para disponível."
+      );
+    }
+  });
 
 
 // =====================================================
@@ -1345,363 +1016,306 @@ document
 // =====================================================
 
 document
-  .getElementById('finalizarBtn')
-  ?.addEventListener(
-    'click',
-    async () => {
+  .getElementById("finalizarBtn")
+  ?.addEventListener("click", async () => {
 
-      if (carrinho.length === 0) return;
+    if (carrinho.length === 0) {
+      return;
+    }
+
+    const botao =
+      document.getElementById(
+        "finalizarBtn"
+      );
+
+    botao.disabled = true;
+
+    botao.textContent =
+      "Verificando disponibilidade...";
 
 
-      const botao =
-        document.getElementById(
-          'finalizarBtn'
+    try {
+
+      await runTransaction(
+        db,
+        async (transaction) => {
+
+          const referencias = [];
+
+          // ---------------------------------------------
+          // PRIMEIRO LÊ TODOS OS PRODUTOS
+          // ---------------------------------------------
+
+          for (const item of carrinho) {
+
+            const referencia =
+              doc(
+                db,
+                "produtos",
+                item.id
+              );
+
+            referencias.push({
+              referencia,
+              item
+            });
+          }
+
+
+          const snapshots = [];
+
+          for (const item of referencias) {
+
+            const snapshot =
+              await transaction.get(
+                item.referencia
+              );
+
+            snapshots.push({
+              snapshot,
+              item
+            });
+          }
+
+
+          // ---------------------------------------------
+          // VERIFICAR STATUS
+          // ---------------------------------------------
+
+          for (const item of snapshots) {
+
+            if (!item.snapshot.exists()) {
+
+              throw new Error(
+                `A peça "${item.item.nome}" não existe mais.`
+              );
+            }
+
+            const dados =
+              item.snapshot.data();
+
+            if (dados.status === "vendido") {
+
+              throw new Error(
+                `A peça "${item.item.nome}" acabou de ser vendida por outra pessoa.`
+              );
+            }
+          }
+
+
+          // ---------------------------------------------
+          // MARCAR TODAS COMO VENDIDAS
+          // ---------------------------------------------
+
+          for (const item of snapshots) {
+
+            transaction.update(
+              item.item.referencia,
+              {
+                status: "vendido"
+              }
+            );
+          }
+        }
+      );
+
+
+      // =================================================
+      // ATUALIZAR TELA
+      // =================================================
+
+      const idsVendidos =
+        carrinho.map(
+          (item) => item.id
         );
 
+      produtos =
+        produtos.map((produto) => {
 
-      botao.disabled = true;
+          if (
+            idsVendidos.includes(
+              produto.id
+            )
+          ) {
+            return {
+              ...produto,
+              status: "vendido"
+            };
+          }
 
-      botao.textContent =
-        'Verificando disponibilidade...';
+          return produto;
+        });
 
+      carrinho = [];
+
+      renderCarrinho();
+      renderGrid();
+      renderVendidos();
+
+      fecharDrawer();
+
+      alert(
+        "Compra registrada com sucesso! 🎉\n\n" +
+        "As peças foram marcadas como vendidas."
+      );
+
+    } catch (erro) {
+
+      console.error(
+        "Erro ao finalizar compra:",
+        erro
+      );
 
       try {
-
-        // =================================================
-        // TRANSAÇÃO ATÔMICA
-        // =================================================
-        //
-        // O Firestore verifica cada produto novamente
-        // antes de concluir.
-        //
-        // Se outra pessoa já tiver vendido a peça,
-        // a transação falha e ela não será vendida
-        // novamente.
-        //
-
-        await runTransaction(
-          db,
-          async transaction => {
-
-            for (const item of carrinho) {
-
-              const produtoRef =
-                doc(
-                  db,
-                  'produtos',
-                  item.id
-                );
-
-
-              const snapshot =
-                await transaction.get(
-                  produtoRef
-                );
-
-
-              if (!snapshot.exists()) {
-
-                throw new Error(
-                  `A peça "${item.nome}" não existe mais.`
-                );
-
-              }
-
-
-              const dados =
-                snapshot.data();
-
-
-              if (
-                dados.status === 'vendido'
-              ) {
-
-                throw new Error(
-                  `A peça "${item.nome}" acabou de ser vendida por outra pessoa.`
-                );
-
-              }
-
-
-              transaction.update(
-                produtoRef,
-                {
-                  status: 'vendido'
-                }
-              );
-
-            }
-
-          }
-        );
-
-
-        // =================================================
-        // ATUALIZAR MEMÓRIA LOCAL
-        // =================================================
-
-        const idsVendidos =
-          carrinho.map(
-            item => item.id
-          );
-
-
         produtos =
-          produtos.map(
-            produto => {
-
-              if (
-                idsVendidos.includes(
-                  produto.id
-                )
-              ) {
-
-                return {
-
-                  ...produto,
-
-                  status: 'vendido'
-
-                };
-
-              }
-
-              return produto;
-
-            }
-          );
-
-
-        carrinho = [];
-
-
-        renderCarrinho();
-        renderGrid();
-        renderVendidos();
-
-
-        fecharDrawer();
-
-
-        alert(
-          'Compra registrada com sucesso! 🎉\n\n' +
-          'As peças foram marcadas como vendidas.'
-        );
-
-
-      } catch (erro) {
-
+          await buscarProdutos();
+      } catch (erroBanco) {
         console.error(
-          'Erro ao finalizar compra:',
-          erro
+          "Erro ao atualizar produtos:",
+          erroBanco
         );
-
-
-        // Recarrega do banco para descobrir
-        // se alguma peça mudou de status.
-
-        try {
-
-          produtos =
-            await buscarProdutos();
-
-        } catch (erroBanco) {
-
-          console.error(
-            'Erro ao atualizar produtos:',
-            erroBanco
-          );
-
-        }
-
-
-        // Remove da sacola qualquer peça
-        // que já esteja vendida.
-
-        carrinho =
-          carrinho.filter(
-            item => {
-
-              const produtoAtual =
-                produtos.find(
-                  p => p.id === item.id
-                );
-
-              return (
-                produtoAtual &&
-                produtoDisponivel(
-                  produtoAtual
-                )
-              );
-
-            }
-          );
-
-
-        renderCarrinho();
-        renderGrid();
-        renderVendidos();
-
-
-        alert(
-          erro.message ||
-          'Não foi possível finalizar a compra.'
-        );
-
-
-      } finally {
-
-        botao.disabled = false;
-
-        botao.textContent =
-          'Finalizar compra';
-
       }
 
+      carrinho =
+        carrinho.filter((item) => {
+
+          const produtoAtual =
+            produtos.find(
+              (produto) =>
+                produto.id === item.id
+            );
+
+          return (
+            produtoAtual &&
+            produtoDisponivel(
+              produtoAtual
+            )
+          );
+        });
+
+      renderCarrinho();
+      renderGrid();
+      renderVendidos();
+
+      alert(
+        erro.message ||
+        "Não foi possível finalizar a compra."
+      );
+
+    } finally {
+
+      botao.disabled = false;
+
+      botao.textContent =
+        "Finalizar compra";
     }
-  );
+  });
 
 
 // =====================================================
-// MODO ADMIN — FIREBASE AUTHENTICATION
+// ÁREA DA LOJA
 // =====================================================
 
 document
-  .getElementById('abrirAreaLoja')
-  ?.addEventListener(
-    'click',
-    async e => {
+  .getElementById("abrirAreaLoja")
+  ?.addEventListener("click", async (e) => {
 
-      e.preventDefault();
+    e.preventDefault();
 
+    const email =
+      prompt("E-mail da loja:");
 
-      const email =
-        prompt(
-          'E-mail da loja:'
-        );
+    if (email === null) return;
 
+    const senha =
+      prompt("Senha da loja:");
 
-      if (email === null) return;
+    if (senha === null) return;
 
+    const sucesso =
+      await fazerLogin(
+        email.trim(),
+        senha
+      );
 
-      const senha =
-        prompt(
-          'Senha da loja:'
-        );
-
-
-      if (senha === null) return;
-
-
-      const sucesso =
-        await fazerLogin(
-          email.trim(),
-          senha
-        );
-
-
-      if (sucesso) {
-
-        document.body.classList.add(
-          'modo-admin'
-        );
-
-
-        alert(
-          'Login realizado com sucesso!'
-        );
-
-
-        renderGrid();
-        renderVendidos();
-
-
-      } else {
-
-        document.body.classList.remove(
-          'modo-admin'
-        );
-
-
-        alert(
-          'E-mail ou senha incorretos.'
-        );
-
-      }
-
-    }
-  );
-
-
-// =====================================================
-// OBSERVAR ESTADO DO LOGIN
-// =====================================================
-
-observarLogin(
-  usuario => {
-
-    if (usuario) {
+    if (sucesso) {
 
       document.body.classList.add(
-        'modo-admin'
+        "modo-admin"
       );
+
+      alert(
+        "Login realizado com sucesso!"
+      );
+
+      renderGrid();
+      renderVendidos();
 
     } else {
 
       document.body.classList.remove(
-        'modo-admin'
+        "modo-admin"
       );
 
+      alert(
+        "E-mail ou senha incorretos."
+      );
     }
-
-
-    renderGrid();
-    renderVendidos();
-
-  }
-);
+  });
 
 
 // =====================================================
-// SAIR DA ÁREA ADMIN
+// OBSERVAR LOGIN
+// =====================================================
+
+observarLogin((usuario) => {
+
+  if (usuario) {
+    document.body.classList.add(
+      "modo-admin"
+    );
+  } else {
+    document.body.classList.remove(
+      "modo-admin"
+    );
+  }
+
+  renderGrid();
+  renderVendidos();
+});
+
+
+// =====================================================
+// SAIR DO ADMIN
 // =====================================================
 
 document
-  .getElementById('sairAdmin')
-  ?.addEventListener(
-    'click',
-    async () => {
+  .getElementById("sairAdmin")
+  ?.addEventListener("click", async () => {
 
-      try {
+    try {
 
-        await sair();
+      await sair();
 
+      document.body.classList.remove(
+        "modo-admin"
+      );
 
-        document.body.classList.remove(
-          'modo-admin'
-        );
+      renderGrid();
+      renderVendidos();
 
+    } catch (erro) {
 
-        renderGrid();
-        renderVendidos();
+      console.error(
+        "Erro ao sair:",
+        erro
+      );
 
-
-      } catch (erro) {
-
-        console.error(
-          'Erro ao sair:',
-          erro
-        );
-
-
-        alert(
-          'Não foi possível sair da área da loja.'
-        );
-
-      }
-
+      alert(
+        "Não foi possível sair da área da loja."
+      );
     }
-  );
+  });
 
 
 // =====================================================
@@ -1709,105 +1323,86 @@ document
 // =====================================================
 
 const modalOverlay =
-  document.getElementById('modalOverlay');
+  document.getElementById("modalOverlay");
 
 const campoNome =
-  document.getElementById('campoNome');
+  document.getElementById("campoNome");
 
 const campoCategoria =
-  document.getElementById('campoCategoria');
+  document.getElementById("campoCategoria");
 
 const campoPreco =
-  document.getElementById('campoPreco');
+  document.getElementById("campoPreco");
 
 const campoFoto =
-  document.getElementById('campoFoto');
+  document.getElementById("campoFoto");
 
 const previewFoto =
-  document.getElementById('previewFoto');
+  document.getElementById("previewFoto");
 
 
 // =====================================================
-// MÁSCARA DE PREÇO
+// PREÇO
 // =====================================================
 
-let valorDigitado = '';
-
-
-// =====================================================
-// FORMATAR PREÇO DO CAMPO
-// =====================================================
+let valorDigitado = "";
 
 function atualizarMascaraPreco() {
 
   if (!valorDigitado) {
 
-    campoPreco.value = '';
+    campoPreco.value = "";
 
     return;
-
   }
 
-
-  let partes =
-    valorDigitado.split(',');
-
+  const partes =
+    valorDigitado.split(",");
 
   let reais =
-    partes[0].replace(/\D/g, '');
-
+    partes[0].replace(/\D/g, "");
 
   let centavos =
     partes[1]
-      ? partes[1].replace(/\D/g, '').slice(0, 2)
+      ? partes[1]
+          .replace(/\D/g, "")
+          .slice(0, 2)
       : null;
 
-
   if (!reais) {
-
-    reais = '0';
-
+    reais = "0";
   }
 
-
   reais =
-    String(
-      Number(reais)
-    );
-
+    String(Number(reais));
 
   const reaisFormatados =
     Number(reais).toLocaleString(
-      'pt-BR'
+      "pt-BR"
     );
-
 
   if (partes.length > 1) {
 
     campoPreco.value =
-      'R$ ' +
+      "R$ " +
       reaisFormatados +
-      ',' +
-      (centavos || '');
+      "," +
+      (centavos || "");
 
   } else {
 
     campoPreco.value =
-      'R$ ' +
+      "R$ " +
       reaisFormatados;
-
   }
-
 
   const posicao =
     campoPreco.value.length;
-
 
   campoPreco.setSelectionRange(
     posicao,
     posicao
   );
-
 }
 
 
@@ -1815,243 +1410,172 @@ function atualizarMascaraPreco() {
 // DIGITAÇÃO DO PREÇO
 // =====================================================
 
-campoPreco.addEventListener(
-  'keydown',
-  e => {
+if (campoPreco) {
 
-    if (
-      e.ctrlKey ||
-      e.metaKey
-    ) {
-
-      return;
-
-    }
-
-
-    if (
-      [
-        'Tab',
-        'Escape',
-        'Enter'
-      ].includes(e.key)
-    ) {
-
-      return;
-
-    }
-
-
-    // -----------------------------------------------
-    // BACKSPACE
-    // -----------------------------------------------
-
-    if (e.key === 'Backspace') {
-
-      e.preventDefault();
-
+  campoPreco.addEventListener(
+    "keydown",
+    (e) => {
 
       if (
-        valorDigitado.includes(',')
+        e.ctrlKey ||
+        e.metaKey
       ) {
+        return;
+      }
 
-        const partes =
-          valorDigitado.split(',');
+      if (
+        [
+          "Tab",
+          "Escape",
+          "Enter"
+        ].includes(e.key)
+      ) {
+        return;
+      }
 
+      if (e.key === "Backspace") {
+
+        e.preventDefault();
 
         if (
-          partes[1] &&
-          partes[1].length > 0
+          valorDigitado.includes(",")
         ) {
 
-          partes[1] =
-            partes[1].slice(0, -1);
+          const partes =
+            valorDigitado.split(",");
 
+          if (
+            partes[1] &&
+            partes[1].length > 0
+          ) {
 
-          valorDigitado =
-            partes.join(',');
+            partes[1] =
+              partes[1].slice(0, -1);
+
+            valorDigitado =
+              partes.join(",");
+
+          } else {
+
+            valorDigitado =
+              partes[0];
+          }
 
         } else {
 
           valorDigitado =
-            partes[0];
-
+            valorDigitado.slice(0, -1);
         }
 
-      } else {
-
-        valorDigitado =
-          valorDigitado.slice(0, -1);
-
-      }
-
-
-      atualizarMascaraPreco();
-
-      return;
-
-    }
-
-
-    // -----------------------------------------------
-    // VÍRGULA
-    // -----------------------------------------------
-
-    if (e.key === ',') {
-
-      e.preventDefault();
-
-
-      if (
-        !valorDigitado.includes(',')
-      ) {
-
-        valorDigitado += ',';
-
         atualizarMascaraPreco();
 
+        return;
       }
 
-
-      return;
-
-    }
-
-
-    // -----------------------------------------------
-    // PONTO
-    // -----------------------------------------------
-
-    if (e.key === '.') {
-
-      e.preventDefault();
-
-
       if (
-        !valorDigitado.includes(',')
+        e.key === "," ||
+        e.key === "."
       ) {
 
-        valorDigitado += ',';
-
-        atualizarMascaraPreco();
-
-      }
-
-
-      return;
-
-    }
-
-
-    // -----------------------------------------------
-    // NÚMEROS
-    // -----------------------------------------------
-
-    if (/^\d$/.test(e.key)) {
-
-      e.preventDefault();
-
-
-      const partes =
-        valorDigitado.split(',');
-
-
-      if (
-        partes.length > 1
-      ) {
+        e.preventDefault();
 
         if (
-          partes[1].length < 2
+          !valorDigitado.includes(",")
         ) {
 
-          partes[1] += e.key;
+          valorDigitado += ",";
 
-          valorDigitado =
-            partes.join(',');
-
+          atualizarMascaraPreco();
         }
 
+        return;
       }
 
-      else {
+      if (
+        /^\d$/.test(e.key)
+      ) {
 
-        partes[0] += e.key;
+        e.preventDefault();
 
-        valorDigitado =
-          partes[0];
+        const partes =
+          valorDigitado.split(",");
 
+        if (
+          partes.length > 1
+        ) {
+
+          if (
+            partes[1].length < 2
+          ) {
+
+            partes[1] += e.key;
+
+            valorDigitado =
+              partes.join(",");
+          }
+
+        } else {
+
+          partes[0] += e.key;
+
+          valorDigitado =
+            partes[0];
+        }
+
+        atualizarMascaraPreco();
       }
-
-
-      atualizarMascaraPreco();
-
     }
-
-  }
-);
+  );
 
 
-// =====================================================
-// COLAR PREÇO
-// =====================================================
+  // ===================================================
+  // COLAR PREÇO
+  // ===================================================
 
-campoPreco.addEventListener(
-  'paste',
-  e => {
+  campoPreco.addEventListener(
+    "paste",
+    (e) => {
 
-    e.preventDefault();
+      e.preventDefault();
 
+      const texto =
+        e.clipboardData.getData("text");
 
-    const texto =
-      e.clipboardData.getData('text');
+      let valor =
+        texto
+          .replace(/^R\$\s?/i, "")
+          .replace(/\./g, "")
+          .replace(",", ".")
+          .replace(/[^\d.]/g, "");
 
+      const numero =
+        Number(valor);
 
-    let valor =
-      texto
-        .replace(/^R\$\s?/i, '')
-        .replace(/\./g, '')
-        .replace(',', '.')
-        .replace(/[^\d.]/g, '');
-
-
-    const numero =
-      Number(valor);
-
-
-    if (
-      isNaN(numero)
-    ) {
-
-      return;
-
-    }
-
-
-    valorDigitado =
-      String(numero)
-        .replace('.', ',');
-
-
-    if (
-      valorDigitado.includes(',')
-    ) {
-
-      const partes =
-        valorDigitado.split(',');
-
+      if (isNaN(numero)) {
+        return;
+      }
 
       valorDigitado =
-        partes[0] +
-        ',' +
-        partes[1].slice(0, 2);
+        String(numero)
+          .replace(".", ",");
 
+      if (
+        valorDigitado.includes(",")
+      ) {
+
+        const partes =
+          valorDigitado.split(",");
+
+        valorDigitado =
+          partes[0] +
+          "," +
+          partes[1].slice(0, 2);
+      }
+
+      atualizarMascaraPreco();
     }
-
-
-    atualizarMascaraPreco();
-
-  }
-);
+  );
+}
 
 
 // =====================================================
@@ -2065,42 +1589,32 @@ function abrirModal(produto) {
       ? produto.id
       : null;
 
-
   fotoSelecionada =
     produto
       ? produto.foto || null
       : null;
 
-
   document.getElementById(
-    'modalTitulo'
+    "modalTitulo"
   ).textContent =
     produto
-      ? 'Editar peça'
-      : 'Nova peça';
-
+      ? "Editar peça"
+      : "Nova peça";
 
   campoNome.value =
     produto
       ? produto.nome
-      : '';
-
+      : "";
 
   campoCategoria.value =
     produto
-      ? produto.cat || ''
-      : '';
-
-
-  // -----------------------------------------------
-  // PREÇO
-  // -----------------------------------------------
+      ? produto.cat || ""
+      : "";
 
   if (produto) {
 
     const valor =
       Number(produto.preco);
-
 
     if (
       Number.isInteger(valor)
@@ -2114,24 +1628,19 @@ function abrirModal(produto) {
       valorDigitado =
         valor
           .toFixed(2)
-          .replace('.', ',');
-
+          .replace(".", ",");
     }
-
 
     atualizarMascaraPreco();
 
   } else {
 
-    valorDigitado = '';
+    valorDigitado = "";
 
-    campoPreco.value = '';
-
+    campoPreco.value = "";
   }
 
-
-  campoFoto.value = '';
-
+  campoFoto.value = "";
 
   if (fotoSelecionada) {
 
@@ -2139,22 +1648,19 @@ function abrirModal(produto) {
       fotoSelecionada;
 
     previewFoto.style.display =
-      'block';
+      "block";
 
   } else {
 
-    previewFoto.src = '';
+    previewFoto.src = "";
 
     previewFoto.style.display =
-      'none';
-
+      "none";
   }
 
-
   modalOverlay.classList.add(
-    'aberto'
+    "aberto"
   );
-
 }
 
 
@@ -2165,85 +1671,76 @@ function abrirModal(produto) {
 function fecharModal() {
 
   modalOverlay.classList.remove(
-    'aberto'
+    "aberto"
   );
-
 }
 
 
 // =====================================================
-// CANCELAR MODAL
+// CANCELAR
 // =====================================================
 
 document
-  .getElementById('cancelarModal')
+  .getElementById("cancelarModal")
   ?.addEventListener(
-    'click',
+    "click",
     fecharModal
   );
 
 
 // =====================================================
-// CLICAR FORA DO MODAL
+// CLICAR FORA
 // =====================================================
 
 modalOverlay?.addEventListener(
-  'click',
-  e => {
+  "click",
+  (e) => {
 
     if (
       e.target === modalOverlay
     ) {
-
       fecharModal();
-
     }
-
   }
 );
 
 
 // =====================================================
-// SELECIONAR FOTO
+// FOTO
 // =====================================================
 
-campoFoto.addEventListener(
-  'change',
-  () => {
+if (campoFoto) {
 
-    const arquivo =
-      campoFoto.files[0];
+  campoFoto.addEventListener(
+    "change",
+    () => {
 
+      const arquivo =
+        campoFoto.files[0];
 
-    if (!arquivo) return;
+      if (!arquivo) return;
 
+      const leitor =
+        new FileReader();
 
-    const leitor =
-      new FileReader();
+      leitor.onload = () => {
 
+        fotoSelecionada =
+          leitor.result;
 
-    leitor.onload = () => {
+        previewFoto.src =
+          fotoSelecionada;
 
-      fotoSelecionada =
-        leitor.result;
+        previewFoto.style.display =
+          "block";
+      };
 
-
-      previewFoto.src =
-        fotoSelecionada;
-
-
-      previewFoto.style.display =
-        'block';
-
-    };
-
-
-    leitor.readAsDataURL(
-      arquivo
-    );
-
-  }
-);
+      leitor.readAsDataURL(
+        arquivo
+      );
+    }
+  );
+}
 
 
 // =====================================================
@@ -2251,37 +1748,25 @@ campoFoto.addEventListener(
 // =====================================================
 
 document
-  .getElementById('salvarModal')
+  .getElementById("salvarModal")
   ?.addEventListener(
-    'click',
+    "click",
     async () => {
 
       const nome =
         campoNome.value.trim();
 
-
       const cat =
         campoCategoria.value.trim() ||
-        'Novidade';
-
-
-      // -----------------------------------------------
-      // CONVERTER PREÇO
-      // -----------------------------------------------
+        "Novidade";
 
       const valorParaSalvar =
         valorDigitado
-          .replace(/\./g, '')
-          .replace(',', '.');
-
+          .replace(/\./g, "")
+          .replace(",", ".");
 
       const preco =
         Number(valorParaSalvar);
-
-
-      // -----------------------------------------------
-      // VALIDAÇÃO
-      // -----------------------------------------------
 
       if (
         !nome ||
@@ -2290,90 +1775,65 @@ document
       ) {
 
         alert(
-          'Preencha ao menos o nome e o preço da peça.'
+          "Preencha ao menos o nome e o preço da peça."
         );
 
         return;
-
       }
-
-
-      // -----------------------------------------------
-      // DESABILITAR BOTÃO
-      // -----------------------------------------------
 
       const botao =
         document.getElementById(
-          'salvarModal'
+          "salvarModal"
         );
 
-
-      botao.disabled =
-        true;
-
+      botao.disabled = true;
 
       botao.textContent =
-        'Salvando...';
-
+        "Salvando...";
 
       try {
 
-        // =================================================
-        // EDITAR PRODUTO
-        // =================================================
+        // =============================================
+        // EDITAR
+        // =============================================
 
         if (editandoId) {
 
           const dadosAtualizados = {
-
             nome,
-
             cat,
-
             preco
-
           };
 
-
           if (fotoSelecionada) {
-
             dadosAtualizados.foto =
               fotoSelecionada;
-
           }
-
 
           await editarProduto(
             editandoId,
             dadosAtualizados
           );
 
-
           const indice =
             produtos.findIndex(
-              x =>
-                x.id === editandoId
+              (produto) =>
+                produto.id === editandoId
             );
-
 
           if (indice !== -1) {
 
             produtos[indice] = {
-
               ...produtos[indice],
-
               ...dadosAtualizados
-
             };
-
           }
 
         }
 
-
-        // =================================================
-        // NOVO PRODUTO
-        // =================================================
+        // =============================================
+        // NOVO
+        // =============================================
 
         else {
 
@@ -2385,8 +1845,7 @@ document
 
             preco,
 
-            status:
-              'disponivel',
+            status: "disponivel",
 
             cor:
               CORES_FALLBACK[
@@ -2396,59 +1855,42 @@ document
 
             foto:
               fotoSelecionada || null
-
           };
-
 
           const produtoCriado =
             await adicionarProduto(
               novoProduto
             );
 
-
           produtos.push(
             produtoCriado
           );
-
         }
-
-
-        // -----------------------------------------------
-        // ATUALIZAR TELA
-        // -----------------------------------------------
 
         renderGrid();
         renderVendidos();
 
-
         fecharModal();
-
 
       } catch (erro) {
 
         console.error(
-          'Erro ao salvar produto:',
+          "Erro ao salvar produto:",
           erro
         );
 
-
         alert(
-          'Não consegui salvar o produto no Firebase.\n\n' +
-          'Confira as regras do Firestore e a conexão com o Firebase.'
+          "Não consegui salvar o produto no Firebase.\n\n" +
+          "Confira as regras do Firestore e a conexão com o Firebase."
         );
-
 
       } finally {
 
-        botao.disabled =
-          false;
-
+        botao.disabled = false;
 
         botao.textContent =
-          'Salvar peça';
-
+          "Salvar peça";
       }
-
     }
   );
 
@@ -2460,4 +1902,3 @@ document
 carregarProdutos();
 
 renderCarrinho();
-```
