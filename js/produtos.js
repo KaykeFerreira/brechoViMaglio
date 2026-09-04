@@ -7,7 +7,7 @@ import {
   doc
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
-import { db } from "./config.js";
+import { db } from "../firebase/config.js";
 
 const produtosRef = collection(db, "produtos");
 
