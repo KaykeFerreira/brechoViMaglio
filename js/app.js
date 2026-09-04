@@ -562,6 +562,32 @@ const previewFoto =
 
 
 // =====================================================
+// MÁSCARA DE PREÇO
+// =====================================================
+
+campoPreco.addEventListener('input', () => {
+
+  let valor = campoPreco.value;
+
+  // Remove R$, pontos, vírgulas e qualquer outro caractere
+  valor = valor.replace(/\D/g, '');
+
+  if (!valor) {
+    campoPreco.value = '';
+    return;
+  }
+
+  // Converte diretamente para número inteiro
+  const numero = Number(valor);
+
+  campoPreco.value = 'R$ ' + numero.toLocaleString('pt-BR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+
+});
+
+// =====================================================
 // ABRIR MODAL
 // =====================================================
 
@@ -589,9 +615,12 @@ function abrirModal(produto) {
     ? produto.cat || ''
     : '';
 
-  campoPreco.value = produto
-    ? produto.preco
-    : '';
+campoPreco.value = produto
+  ? 'R$ ' + Number(produto.preco).toLocaleString('pt-BR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    })
+  : '';
 
   campoFoto.value = '';
 
@@ -706,9 +735,10 @@ document
         'Novidade';
 
       const preco =
-        parseFloat(
-          campoPreco.value
-        );
+  Number(
+    campoPreco.value
+      .replace(/\D/g, '')
+  );
 
 
       // -----------------------------------------------
