@@ -1,19 +1,17 @@
-/* Vimaglio — Firebase
- *
- * PRÓXIMA ETAPA:
- * 1. Criar o app Web no Firebase.
- * 2. Inserir aqui somente a configuração pública do Firebase.
- * 3. Inicializar Firebase/Firestore.
- *
- * Não coloque senhas, chaves privadas ou credenciais de servidor neste arquivo.
- */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
+import { getFirestore } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+
 const firebaseConfig = {
-  apiKey: "COLOCAR_AQUI",
-  authDomain: "COLOCAR_AQUI",
-  projectId: "COLOCAR_AQUI",
-  storageBucket: "COLOCAR_AQUI",
-  messagingSenderId: "COLOCAR_AQUI",
-  appId: "COLOCAR_AQUI"
+  apiKey: "AIzaSyAfGA4qCTK1hMZrpZNdVrTQJdI6HA_XLDI",
+  authDomain: "brechovimaglio.firebaseapp.com",
+  projectId: "brechovimaglio",
+  storageBucket: "brechovimaglio.firebasestorage.app",
+  messagingSenderId: "409944624323",
+  appId: "1:409944624323:web:d336270a45427ebe576676"
 };
 
-export { firebaseConfig };
+const app = initializeApp(firebaseConfig);
+
+const db = getFirestore(app);
+
+export { app, db };
