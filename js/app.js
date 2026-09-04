@@ -1,3 +1,4 @@
+```javascript
 import {
   buscarProdutos,
   adicionarProduto,
@@ -10,6 +11,13 @@ import {
   sair,
   observarLogin
 } from "./admin.js";
+
+import {
+  runTransaction,
+  doc
+} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+
+import { db } from "../firebase/config.js";
 
 
 // =====================================================
@@ -34,12 +42,34 @@ let ordenacaoAtual = 'recentes';
 
 
 // =====================================================
+// VERIFICAR STATUS
+// =====================================================
+
+function produtoDisponivel(produto) {
+
+  return (
+    !produto.status ||
+    produto.status === 'disponivel'
+  );
+
+}
+
+
+function produtoVendido(produto) {
+
+  return produto.status === 'vendido';
+
+}
+
+
+// =====================================================
 // CARREGAR PRODUTOS DO FIRESTORE
 // =====================================================
 
 async function carregarProdutos() {
 
-  const grid = document.getElementById('gridProdutos');
+  const grid =
+    document.getElementById('gridProdutos');
 
   try {
 
@@ -52,10 +82,14 @@ async function carregarProdutos() {
     produtos = await buscarProdutos();
 
     renderGrid();
+    renderVendidos();
 
   } catch (erro) {
 
-    console.error("Erro ao carregar produtos:", erro);
+    console.error(
+      "Erro ao carregar produtos:",
+      erro
+    );
 
     grid.innerHTML = `
       <p style="color:var(--tinta-suave); grid-column:1/-1;">
@@ -67,7 +101,9 @@ async function carregarProdutos() {
       "Não consegui conectar ao banco de produtos. " +
       "Verifique a configuração do Firebase."
     );
+
   }
+
 }
 
 
@@ -105,7 +141,9 @@ function thumbHtml(p) {
 
 function obterProdutosVisiveis() {
 
-  let resultado = [...produtos];
+  let resultado = produtos.filter(
+    produto => produtoDisponivel(produto)
+  );
 
 
   // ===================================================
@@ -169,7 +207,6 @@ function obterProdutosVisiveis() {
 
   }
 
-
   else if (ordenacaoAtual === 'maior-preco') {
 
     resultado.sort(
@@ -178,7 +215,6 @@ function obterProdutosVisiveis() {
     );
 
   }
-
 
   else if (ordenacaoAtual === 'az') {
 
@@ -192,7 +228,6 @@ function obterProdutosVisiveis() {
 
   }
 
-
   else if (ordenacaoAtual === 'za') {
 
     resultado.sort(
@@ -204,10 +239,6 @@ function obterProdutosVisiveis() {
     );
 
   }
-
-
-  // "recentes" mantém a ordem original
-  // recebida do Firestore.
 
 
   return resultado;
@@ -268,13 +299,15 @@ function atualizarResultadoFiltros(total) {
 
 
 // =====================================================
-// RENDERIZAR PRODUTOS
+// RENDERIZAR VITRINE
 // =====================================================
 
 function renderGrid() {
 
   const grid =
     document.getElementById('gridProdutos');
+
+  if (!grid) return;
 
 
   const produtosVisiveis =
@@ -313,9 +346,6 @@ function renderGrid() {
     `;
 
 
-    // O botão de adicionar precisa continuar
-    // aparecendo para o administrador.
-
     if (
       document.body.classList.contains('modo-admin')
     ) {
@@ -350,7 +380,7 @@ function renderGrid() {
 
 
   // ===================================================
-  // PRODUTOS
+  // PRODUTOS DISPONÍVEIS
   // ===================================================
 
   grid.innerHTML =
@@ -364,32 +394,36 @@ function renderGrid() {
 
           ${thumbHtml(p)}
 
-
           <span class="card-tag">
             ${p.cat || 'Novidade'}
           </span>
 
 
-          <div class="card-admin-actions">
+          ${
+            document.body.classList.contains('modo-admin')
+              ? `
+                <div class="card-admin-actions">
 
-            <button
-              class="editar-btn"
-              data-id="${p.id}"
-              aria-label="Editar ${p.nome}"
-            >
-              ✎
-            </button>
+                  <button
+                    class="editar-btn"
+                    data-id="${p.id}"
+                    aria-label="Editar ${p.nome}"
+                  >
+                    ✎
+                  </button>
 
+                  <button
+                    class="excluir-btn"
+                    data-id="${p.id}"
+                    aria-label="Excluir ${p.nome}"
+                  >
+                    ✕
+                  </button>
 
-            <button
-              class="excluir-btn"
-              data-id="${p.id}"
-              aria-label="Excluir ${p.nome}"
-            >
-              ✕
-            </button>
-
-          </div>
+                </div>
+              `
+              : ''
+          }
 
         </div>
 
@@ -423,6 +457,21 @@ function renderGrid() {
 
           </div>
 
+
+          ${
+            document.body.classList.contains('modo-admin')
+              ? `
+                <button
+                  class="marcar-vendido-btn"
+                  data-id="${p.id}"
+                  type="button"
+                >
+                  ✓ Marcar como vendido
+                </button>
+              `
+              : ''
+          }
+
         </div>
 
       </div>
@@ -431,7 +480,7 @@ function renderGrid() {
 
 
   // ===================================================
-  // BOTÃO ADMIN
+  // BOTÃO NOVA PEÇA
   // ===================================================
 
   if (
@@ -467,6 +516,106 @@ function renderGrid() {
 
 
 // =====================================================
+// RENDERIZAR PEÇAS VENDIDAS
+// =====================================================
+
+function renderVendidos() {
+
+  const grid =
+    document.getElementById('gridVendidos');
+
+  if (!grid) return;
+
+
+  const vendidos =
+    produtos.filter(
+      produto => produtoVendido(produto)
+    );
+
+
+  if (vendidos.length === 0) {
+
+    grid.innerHTML = `
+
+      <p
+        style="
+          color:var(--tinta-suave);
+          grid-column:1/-1;
+        "
+      >
+        Ainda não temos peças vendidas por aqui.
+      </p>
+
+    `;
+
+    return;
+
+  }
+
+
+  grid.innerHTML =
+    vendidos.map(p => `
+
+      <div class="card vendido-card">
+
+        <div
+          class="card-thumb ${p.foto ? '' : p.cor || 'g1'}"
+        >
+
+          ${thumbHtml(p)}
+
+          <span class="card-tag">
+            ${p.cat || 'Peça'}
+          </span>
+
+        </div>
+
+
+        <div class="card-body">
+
+          <span class="card-cat">
+            peça · vendida
+          </span>
+
+
+          <h3 class="card-nome">
+            ${p.nome}
+          </h3>
+
+
+          <div class="card-footer">
+
+            <span class="card-preco">
+              ${formatar(p.preco)}
+            </span>
+
+          </div>
+
+
+          ${
+            document.body.classList.contains('modo-admin')
+              ? `
+                <button
+                  class="voltar-disponivel-btn"
+                  data-id="${p.id}"
+                  type="button"
+                >
+                  ↺ Voltar para disponível
+                </button>
+              `
+              : ''
+          }
+
+        </div>
+
+      </div>
+
+    `).join('');
+
+}
+
+
+// =====================================================
 // FILTROS — CATEGORIAS
 // =====================================================
 
@@ -487,16 +636,14 @@ filtrosCategoria.forEach(botao => {
         'todas';
 
 
-      // Remove seleção anterior
-
       filtrosCategoria.forEach(item => {
 
-        item.classList.remove('selecionado');
+        item.classList.remove(
+          'selecionado'
+        );
 
       });
 
-
-      // Seleciona botão atual
 
       botao.classList.add(
         'selecionado'
@@ -505,8 +652,6 @@ filtrosCategoria.forEach(botao => {
 
       renderGrid();
 
-
-      // Leva o usuário para os produtos
 
       document
         .getElementById('produtos')
@@ -540,7 +685,6 @@ if (campoBusca) {
       buscaAtual =
         campoBusca.value.trim();
 
-
       renderGrid();
 
     }
@@ -567,7 +711,6 @@ if (ordenarProdutos) {
 
       ordenacaoAtual =
         ordenarProdutos.value;
-
 
       renderGrid();
 
@@ -673,6 +816,9 @@ function renderCarrinho() {
     document.getElementById('subtotalValor');
 
 
+  if (!container || !badge || !subtotalEl) return;
+
+
   badge.textContent =
     carrinho.length;
 
@@ -754,25 +900,25 @@ const overlay =
 
 function abrirDrawer() {
 
-  drawer.classList.add('aberto');
+  drawer?.classList.add('aberto');
 
-  overlay.classList.add('aberto');
+  overlay?.classList.add('aberto');
 
 }
 
 
 function fecharDrawer() {
 
-  drawer.classList.remove('aberto');
+  drawer?.classList.remove('aberto');
 
-  overlay.classList.remove('aberto');
+  overlay?.classList.remove('aberto');
 
 }
 
 
 document
   .getElementById('abrirCarrinho')
-  .addEventListener(
+  ?.addEventListener(
     'click',
     abrirDrawer
   );
@@ -780,13 +926,13 @@ document
 
 document
   .getElementById('fecharCarrinho')
-  .addEventListener(
+  ?.addEventListener(
     'click',
     fecharDrawer
   );
 
 
-overlay.addEventListener(
+overlay?.addEventListener(
   'click',
   fecharDrawer
 );
@@ -798,7 +944,7 @@ overlay.addEventListener(
 
 document
   .getElementById('gridProdutos')
-  .addEventListener(
+  ?.addEventListener(
     'click',
     async (e) => {
 
@@ -810,6 +956,9 @@ document
 
       const delBtn =
         e.target.closest('.excluir-btn');
+
+      const vendidoBtn =
+        e.target.closest('.marcar-vendido-btn');
 
 
       // -----------------------------------------------
@@ -825,6 +974,40 @@ document
 
         if (!p) return;
 
+
+        if (!produtoDisponivel(p)) {
+
+          alert(
+            'Essa peça já foi vendida.'
+          );
+
+          return;
+
+        }
+
+
+        // Evita colocar a mesma peça duas vezes
+        // na sacola.
+
+        const jaNoCarrinho =
+          carrinho.some(
+            item => item.id === p.id
+          );
+
+
+        if (jaNoCarrinho) {
+
+          alert(
+            'Essa peça já está na sua sacola.'
+          );
+
+          abrirDrawer();
+
+          return;
+
+        }
+
+
         carrinho.push(p);
 
         renderCarrinho();
@@ -832,6 +1015,103 @@ document
         abrirDrawer();
 
         return;
+
+      }
+
+
+      // -----------------------------------------------
+      // MARCAR COMO VENDIDO
+      // -----------------------------------------------
+
+      if (
+        vendidoBtn &&
+        document.body.classList.contains('modo-admin')
+      ) {
+
+        const id =
+          vendidoBtn.dataset.id;
+
+        const produto =
+          produtos.find(
+            x => x.id === id
+          );
+
+        if (!produto) return;
+
+
+        if (
+          !confirm(
+            `Marcar "${produto.nome}" como vendida?`
+          )
+        ) {
+
+          return;
+
+        }
+
+
+        try {
+
+          await editarProduto(
+            id,
+            {
+              status: 'vendido'
+            }
+          );
+
+
+          const indice =
+            produtos.findIndex(
+              x => x.id === id
+            );
+
+
+          if (indice !== -1) {
+
+            produtos[indice] = {
+
+              ...produtos[indice],
+
+              status: 'vendido'
+
+            };
+
+          }
+
+
+          // Se estava na sacola, remove.
+
+          carrinho =
+            carrinho.filter(
+              item => item.id !== id
+            );
+
+
+          renderGrid();
+          renderVendidos();
+          renderCarrinho();
+
+
+          alert(
+            `"${produto.nome}" foi marcada como vendida.`
+          );
+
+
+        } catch (erro) {
+
+          console.error(
+            'Erro ao marcar produto como vendido:',
+            erro
+          );
+
+          alert(
+            'Não foi possível marcar a peça como vendida.'
+          );
+
+        }
+
+        return;
+
       }
 
 
@@ -856,6 +1136,7 @@ document
         }
 
         return;
+
       }
 
 
@@ -889,12 +1170,23 @@ document
 
             await excluirProduto(id);
 
+
             produtos =
               produtos.filter(
                 x => x.id !== id
               );
 
+
+            carrinho =
+              carrinho.filter(
+                item => item.id !== id
+              );
+
+
             renderGrid();
+            renderVendidos();
+            renderCarrinho();
+
 
           } catch (erro) {
 
@@ -908,8 +1200,11 @@ document
             );
 
           }
+
         }
+
       }
+
     }
   );
 
@@ -920,7 +1215,7 @@ document
 
 document
   .getElementById('drawerItens')
-  .addEventListener(
+  ?.addEventListener(
     'click',
     e => {
 
@@ -929,12 +1224,117 @@ document
 
       if (!btn) return;
 
+
       carrinho.splice(
         Number(btn.dataset.index),
         1
       );
 
+
       renderCarrinho();
+
+    }
+  );
+
+
+// =====================================================
+// VOLTAR PEÇA VENDIDA PARA DISPONÍVEL
+// =====================================================
+
+document
+  .getElementById('gridVendidos')
+  ?.addEventListener(
+    'click',
+    async e => {
+
+      const btn =
+        e.target.closest(
+          '.voltar-disponivel-btn'
+        );
+
+      if (!btn) return;
+
+
+      if (
+        !document.body.classList.contains(
+          'modo-admin'
+        )
+      ) {
+
+        return;
+
+      }
+
+
+      const id =
+        btn.dataset.id;
+
+
+      const produto =
+        produtos.find(
+          x => x.id === id
+        );
+
+
+      if (!produto) return;
+
+
+      if (
+        !confirm(
+          `Voltar "${produto.nome}" para a vitrine?`
+        )
+      ) {
+
+        return;
+
+      }
+
+
+      try {
+
+        await editarProduto(
+          id,
+          {
+            status: 'disponivel'
+          }
+        );
+
+
+        const indice =
+          produtos.findIndex(
+            x => x.id === id
+          );
+
+
+        if (indice !== -1) {
+
+          produtos[indice] = {
+
+            ...produtos[indice],
+
+            status: 'disponivel'
+
+          };
+
+        }
+
+
+        renderGrid();
+        renderVendidos();
+
+
+      } catch (erro) {
+
+        console.error(
+          'Erro ao voltar produto:',
+          erro
+        );
+
+        alert(
+          'Não foi possível voltar a peça para disponível.'
+        );
+
+      }
 
     }
   );
@@ -946,17 +1346,217 @@ document
 
 document
   .getElementById('finalizarBtn')
-  .addEventListener(
+  ?.addEventListener(
     'click',
-    () => {
+    async () => {
 
       if (carrinho.length === 0) return;
 
-      alert(
-        'Aqui vai entrar o pagamento de verdade ' +
-        '(Pix / cartão) quando conectarmos o backend. ' +
-        'Por enquanto isso é uma demonstração visual!'
-      );
+
+      const botao =
+        document.getElementById(
+          'finalizarBtn'
+        );
+
+
+      botao.disabled = true;
+
+      botao.textContent =
+        'Verificando disponibilidade...';
+
+
+      try {
+
+        // =================================================
+        // TRANSAÇÃO ATÔMICA
+        // =================================================
+        //
+        // O Firestore verifica cada produto novamente
+        // antes de concluir.
+        //
+        // Se outra pessoa já tiver vendido a peça,
+        // a transação falha e ela não será vendida
+        // novamente.
+        //
+
+        await runTransaction(
+          db,
+          async transaction => {
+
+            for (const item of carrinho) {
+
+              const produtoRef =
+                doc(
+                  db,
+                  'produtos',
+                  item.id
+                );
+
+
+              const snapshot =
+                await transaction.get(
+                  produtoRef
+                );
+
+
+              if (!snapshot.exists()) {
+
+                throw new Error(
+                  `A peça "${item.nome}" não existe mais.`
+                );
+
+              }
+
+
+              const dados =
+                snapshot.data();
+
+
+              if (
+                dados.status === 'vendido'
+              ) {
+
+                throw new Error(
+                  `A peça "${item.nome}" acabou de ser vendida por outra pessoa.`
+                );
+
+              }
+
+
+              transaction.update(
+                produtoRef,
+                {
+                  status: 'vendido'
+                }
+              );
+
+            }
+
+          }
+        );
+
+
+        // =================================================
+        // ATUALIZAR MEMÓRIA LOCAL
+        // =================================================
+
+        const idsVendidos =
+          carrinho.map(
+            item => item.id
+          );
+
+
+        produtos =
+          produtos.map(
+            produto => {
+
+              if (
+                idsVendidos.includes(
+                  produto.id
+                )
+              ) {
+
+                return {
+
+                  ...produto,
+
+                  status: 'vendido'
+
+                };
+
+              }
+
+              return produto;
+
+            }
+          );
+
+
+        carrinho = [];
+
+
+        renderCarrinho();
+        renderGrid();
+        renderVendidos();
+
+
+        fecharDrawer();
+
+
+        alert(
+          'Compra registrada com sucesso! 🎉\n\n' +
+          'As peças foram marcadas como vendidas.'
+        );
+
+
+      } catch (erro) {
+
+        console.error(
+          'Erro ao finalizar compra:',
+          erro
+        );
+
+
+        // Recarrega do banco para descobrir
+        // se alguma peça mudou de status.
+
+        try {
+
+          produtos =
+            await buscarProdutos();
+
+        } catch (erroBanco) {
+
+          console.error(
+            'Erro ao atualizar produtos:',
+            erroBanco
+          );
+
+        }
+
+
+        // Remove da sacola qualquer peça
+        // que já esteja vendida.
+
+        carrinho =
+          carrinho.filter(
+            item => {
+
+              const produtoAtual =
+                produtos.find(
+                  p => p.id === item.id
+                );
+
+              return (
+                produtoAtual &&
+                produtoDisponivel(
+                  produtoAtual
+                )
+              );
+
+            }
+          );
+
+
+        renderCarrinho();
+        renderGrid();
+        renderVendidos();
+
+
+        alert(
+          erro.message ||
+          'Não foi possível finalizar a compra.'
+        );
+
+
+      } finally {
+
+        botao.disabled = false;
+
+        botao.textContent =
+          'Finalizar compra';
+
+      }
 
     }
   );
@@ -968,7 +1568,7 @@ document
 
 document
   .getElementById('abrirAreaLoja')
-  .addEventListener(
+  ?.addEventListener(
     'click',
     async e => {
 
@@ -980,6 +1580,7 @@ document
           'E-mail da loja:'
         );
 
+
       if (email === null) return;
 
 
@@ -987,6 +1588,7 @@ document
         prompt(
           'Senha da loja:'
         );
+
 
       if (senha === null) return;
 
@@ -1004,17 +1606,22 @@ document
           'modo-admin'
         );
 
+
         alert(
           'Login realizado com sucesso!'
         );
 
+
         renderGrid();
+        renderVendidos();
+
 
       } else {
 
         document.body.classList.remove(
           'modo-admin'
         );
+
 
         alert(
           'E-mail ou senha incorretos.'
@@ -1047,7 +1654,9 @@ observarLogin(
 
     }
 
+
     renderGrid();
+    renderVendidos();
 
   }
 );
@@ -1059,7 +1668,7 @@ observarLogin(
 
 document
   .getElementById('sairAdmin')
-  .addEventListener(
+  ?.addEventListener(
     'click',
     async () => {
 
@@ -1067,11 +1676,15 @@ document
 
         await sair();
 
+
         document.body.classList.remove(
           'modo-admin'
         );
 
+
         renderGrid();
+        renderVendidos();
+
 
       } catch (erro) {
 
@@ -1079,6 +1692,7 @@ document
           'Erro ao sair:',
           erro
         );
+
 
         alert(
           'Não foi possível sair da área da loja.'
@@ -1131,6 +1745,7 @@ function atualizarMascaraPreco() {
     campoPreco.value = '';
 
     return;
+
   }
 
 
@@ -1210,6 +1825,7 @@ campoPreco.addEventListener(
     ) {
 
       return;
+
     }
 
 
@@ -1222,6 +1838,7 @@ campoPreco.addEventListener(
     ) {
 
       return;
+
     }
 
 
@@ -1250,6 +1867,7 @@ campoPreco.addEventListener(
           partes[1] =
             partes[1].slice(0, -1);
 
+
           valorDigitado =
             partes.join(',');
 
@@ -1271,6 +1889,7 @@ campoPreco.addEventListener(
       atualizarMascaraPreco();
 
       return;
+
     }
 
 
@@ -1293,7 +1912,9 @@ campoPreco.addEventListener(
 
       }
 
+
       return;
+
     }
 
 
@@ -1316,7 +1937,9 @@ campoPreco.addEventListener(
 
       }
 
+
       return;
+
     }
 
 
@@ -1349,7 +1972,6 @@ campoPreco.addEventListener(
         }
 
       }
-
 
       else {
 
@@ -1416,6 +2038,7 @@ campoPreco.addEventListener(
 
       const partes =
         valorDigitado.split(',');
+
 
       valorDigitado =
         partes[0] +
@@ -1554,7 +2177,7 @@ function fecharModal() {
 
 document
   .getElementById('cancelarModal')
-  .addEventListener(
+  ?.addEventListener(
     'click',
     fecharModal
   );
@@ -1564,7 +2187,7 @@ document
 // CLICAR FORA DO MODAL
 // =====================================================
 
-modalOverlay.addEventListener(
+modalOverlay?.addEventListener(
   'click',
   e => {
 
@@ -1591,6 +2214,7 @@ campoFoto.addEventListener(
     const arquivo =
       campoFoto.files[0];
 
+
     if (!arquivo) return;
 
 
@@ -1603,8 +2227,10 @@ campoFoto.addEventListener(
       fotoSelecionada =
         leitor.result;
 
+
       previewFoto.src =
         fotoSelecionada;
+
 
       previewFoto.style.display =
         'block';
@@ -1626,7 +2252,7 @@ campoFoto.addEventListener(
 
 document
   .getElementById('salvarModal')
-  .addEventListener(
+  ?.addEventListener(
     'click',
     async () => {
 
@@ -1668,6 +2294,7 @@ document
         );
 
         return;
+
       }
 
 
@@ -1741,7 +2368,6 @@ document
 
           }
 
-
         }
 
 
@@ -1758,6 +2384,9 @@ document
             cat,
 
             preco,
+
+            status:
+              'disponivel',
 
             cor:
               CORES_FALLBACK[
@@ -1789,6 +2418,8 @@ document
         // -----------------------------------------------
 
         renderGrid();
+        renderVendidos();
+
 
         fecharModal();
 
@@ -1812,6 +2443,7 @@ document
         botao.disabled =
           false;
 
+
         botao.textContent =
           'Salvar peça';
 
@@ -1828,3 +2460,4 @@ document
 carregarProdutos();
 
 renderCarrinho();
+```
