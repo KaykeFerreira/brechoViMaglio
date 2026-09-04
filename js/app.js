@@ -23,10 +23,6 @@ let carrinho = [];
 let editandoId = null;
 let fotoSelecionada = null;
 
-// Guarda somente os números digitados no preço.
-// Exemplo: "1500" = R$ 1.500,00
-let precoNumeros = '';
-
 
 // =====================================================
 // CARREGAR PRODUTOS DO FIRESTORE
@@ -67,7 +63,7 @@ async function carregarProdutos() {
 
 
 // =====================================================
-// FORMATAÇÃO DE PREÇO DOS PRODUTOS
+// FORMATAÇÃO
 // =====================================================
 
 function formatar(v) {
@@ -80,41 +76,6 @@ function formatar(v) {
 
 }
 
-
-// =====================================================
-// FORMATAR CAMPO DE PREÇO
-// =====================================================
-
-function formatarPrecoInput() {
-
-  if (!precoNumeros) {
-
-    campoPreco.value = '';
-
-    return;
-  }
-
-  const numero = Number(precoNumeros);
-
-  const valorFormatado =
-    numero.toLocaleString('pt-BR', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    });
-
-  campoPreco.value =
-    'R$ ' + valorFormatado;
-
-  // Coloca o cursor antes da parte ",00"
-  // acompanhando o número digitado
-  const posicao =
-    campoPreco.value.length - 3;
-
-  campoPreco.setSelectionRange(
-    posicao,
-    posicao
-  );
-}
 
 // =====================================================
 // FOTO
@@ -135,7 +96,8 @@ function thumbHtml(p) {
 
 function renderGrid() {
 
-  const grid = document.getElementById('gridProdutos');
+  const grid =
+    document.getElementById('gridProdutos');
 
   grid.innerHTML = produtos.map(p => `
 
@@ -200,7 +162,9 @@ function renderGrid() {
 
   `).join('') + `
 
-    <button class="card-nova" id="abrirNovoProduto">
+    <button
+      class="card-nova"
+      id="abrirNovoProduto">
 
       <span>+</span>
 
@@ -464,6 +428,7 @@ document
             alert(
               "Não foi possível excluir o produto."
             );
+
           }
         }
       }
@@ -668,113 +633,300 @@ const previewFoto =
 // MÁSCARA DE PREÇO
 // =====================================================
 
+// Esta variável guarda o valor exatamente
+// como o usuário está digitando.
+//
+// Exemplos:
+//
+// 1500
+// 1500,5
+// 1500,50
+
+let valorDigitado = '';
+
+
+// =====================================================
+// FORMATAR PREÇO DO CAMPO
+// =====================================================
+
+function atualizarMascaraPreco() {
+
+  if (!valorDigitado) {
+
+    campoPreco.value = '';
+
+    return;
+  }
+
+
+  let partes =
+    valorDigitado.split(',');
+
+
+  let reais =
+    partes[0].replace(/\D/g, '');
+
+
+  let centavos =
+    partes[1]
+      ? partes[1].replace(/\D/g, '').slice(0, 2)
+      : null;
+
+
+  if (!reais) {
+
+    reais = '0';
+
+  }
+
+
+  // Remove zeros desnecessários
+  // mas mantém um único zero
+  reais =
+    String(
+      Number(reais)
+    );
+
+
+  const reaisFormatados =
+    Number(reais).toLocaleString(
+      'pt-BR'
+    );
+
+
+  // Se existe vírgula,
+  // mantém a vírgula visível.
+  if (partes.length > 1) {
+
+    campoPreco.value =
+      'R$ ' +
+      reaisFormatados +
+      ',' +
+      (centavos || '');
+
+  } else {
+
+    campoPreco.value =
+      'R$ ' +
+      reaisFormatados;
+
+  }
+
+
+  // Coloca o cursor antes dos centavos
+  // quando houver vírgula.
+  //
+  // Assim:
+  //
+  // R$ 1500|
+  //
+  // vira:
+  //
+  // R$ 1.500|
+  //
+  // e:
+  //
+  // R$ 1.500,5|
+  //
+  // continua acompanhando.
+
+  const posicao =
+    campoPreco.value.length;
+
+  campoPreco.setSelectionRange(
+    posicao,
+    posicao
+  );
+
+}
+
+
+// =====================================================
+// DIGITAÇÃO DO PREÇO
+// =====================================================
+
 campoPreco.addEventListener(
   'keydown',
   e => {
 
-    // Permite atalhos como Ctrl+A, Ctrl+C, Ctrl+V
+    // -----------------------------------------------
+    // CTRL / COMMAND
+    // -----------------------------------------------
+
     if (
       e.ctrlKey ||
       e.metaKey
     ) {
 
-      // Ctrl+A será tratado quando o próximo
-      // número for digitado.
-      if (
-        e.key.toLowerCase() === 'a'
-      ) {
-        return;
-      }
-
       return;
     }
 
 
-    // Permitir teclas de navegação
+    // -----------------------------------------------
+    // TECLAS DE CONTROLE
+    // -----------------------------------------------
+
     if (
       [
         'Tab',
         'Escape',
-        'Enter',
-        'ArrowLeft',
-        'ArrowRight',
-        'Home',
-        'End'
+        'Enter'
       ].includes(e.key)
     ) {
+
       return;
     }
 
 
+    // -----------------------------------------------
     // BACKSPACE
+    // -----------------------------------------------
+
     if (e.key === 'Backspace') {
 
       e.preventDefault();
 
+
       if (
-        campoPreco.selectionStart !==
-        campoPreco.selectionEnd
+        valorDigitado.includes(',')
       ) {
 
-        precoNumeros = '';
+        const partes =
+          valorDigitado.split(',');
+
+
+        if (
+          partes[1] &&
+          partes[1].length > 0
+        ) {
+
+          partes[1] =
+            partes[1].slice(0, -1);
+
+          valorDigitado =
+            partes.join(',');
+
+        } else {
+
+          // Se não há mais centavos,
+          // remove a vírgula.
+          valorDigitado =
+            partes[0];
+
+        }
 
       } else {
 
-        precoNumeros =
-          precoNumeros.slice(0, -1);
+        valorDigitado =
+          valorDigitado.slice(0, -1);
 
       }
 
-      formatarPrecoInput();
+
+      atualizarMascaraPreco();
 
       return;
     }
 
 
-    // DELETE
-    if (e.key === 'Delete') {
+    // -----------------------------------------------
+    // VÍRGULA
+    // -----------------------------------------------
+
+    if (e.key === ',') {
 
       e.preventDefault();
 
-      precoNumeros = '';
 
-      formatarPrecoInput();
+      if (
+        !valorDigitado.includes(',')
+      ) {
+
+        valorDigitado += ',';
+
+        atualizarMascaraPreco();
+
+      }
 
       return;
     }
 
 
-    // SOMENTE NÚMEROS
+    // -----------------------------------------------
+    // PONTO
+    // -----------------------------------------------
+
+    // Se o usuário digitar ponto,
+    // também tratamos como vírgula.
+    if (e.key === '.') {
+
+      e.preventDefault();
+
+
+      if (
+        !valorDigitado.includes(',')
+      ) {
+
+        valorDigitado += ',';
+
+        atualizarMascaraPreco();
+
+      }
+
+      return;
+    }
+
+
+    // -----------------------------------------------
+    // NÚMEROS
+    // -----------------------------------------------
+
     if (/^\d$/.test(e.key)) {
 
       e.preventDefault();
 
 
-      // Se o usuário selecionou tudo,
-      // começa um novo preço.
+      const partes =
+        valorDigitado.split(',');
+
+
+      // ---------------------------------------------
+      // DIGITANDO CENTAVOS
+      // ---------------------------------------------
+
       if (
-        campoPreco.selectionStart !==
-        campoPreco.selectionEnd
+        partes.length > 1
       ) {
 
-        precoNumeros = '';
+        if (
+          partes[1].length < 2
+        ) {
+
+          partes[1] += e.key;
+
+          valorDigitado =
+            partes.join(',');
+
+        }
 
       }
 
 
-      precoNumeros += e.key;
+      // ---------------------------------------------
+      // DIGITANDO REAIS
+      // ---------------------------------------------
 
+      else {
 
-      // Limita para evitar números absurdamente grandes
-      if (precoNumeros.length > 12) {
+        partes[0] += e.key;
 
-        precoNumeros =
-          precoNumeros.slice(0, 12);
+        valorDigitado =
+          partes[0];
 
       }
 
 
-      formatarPrecoInput();
+      atualizarMascaraPreco();
 
     }
 
@@ -792,18 +944,54 @@ campoPreco.addEventListener(
 
     e.preventDefault();
 
+
     const texto =
       e.clipboardData.getData('text');
 
-    const numeros =
-      texto.replace(/\D/g, '');
 
-    if (!numeros) return;
+    let valor =
+      texto
+        .replace(/^R\$\s?/i, '')
+        .replace(/\./g, '')
+        .replace(',', '.')
+        .replace(/[^\d.]/g, '');
 
-    precoNumeros =
-      numeros.slice(0, 12);
 
-    formatarPrecoInput();
+    const numero =
+      Number(valor);
+
+
+    if (
+      isNaN(numero)
+    ) {
+
+      return;
+
+    }
+
+
+    valorDigitado =
+      String(numero)
+        .replace('.', ',');
+
+
+    // Mantém no máximo 2 casas
+    if (
+      valorDigitado.includes(',')
+    ) {
+
+      const partes =
+        valorDigitado.split(',');
+
+      valorDigitado =
+        partes[0] +
+        ',' +
+        partes[1].slice(0, 2);
+
+    }
+
+
+    atualizarMascaraPreco();
 
   }
 );
@@ -853,18 +1041,32 @@ function abrirModal(produto) {
 
   if (produto) {
 
-    precoNumeros =
-      String(
-        Math.round(
-          Number(produto.preco)
-        )
-      );
+    const valor =
+      Number(produto.preco);
 
-    formatarPrecoInput();
+
+    if (
+      Number.isInteger(valor)
+    ) {
+
+      valorDigitado =
+        String(valor);
+
+    } else {
+
+      valorDigitado =
+        valor
+          .toFixed(2)
+          .replace('.', ',');
+
+    }
+
+
+    atualizarMascaraPreco();
 
   } else {
 
-    precoNumeros = '';
+    valorDigitado = '';
 
     campoPreco.value = '';
 
@@ -1004,11 +1206,17 @@ document
 
 
       // -----------------------------------------------
-      // PREÇO
+      // CONVERTER PREÇO
       // -----------------------------------------------
 
+      const valorParaSalvar =
+        valorDigitado
+          .replace(/\./g, '')
+          .replace(',', '.');
+
+
       const preco =
-        Number(precoNumeros);
+        Number(valorParaSalvar);
 
 
       // -----------------------------------------------
@@ -1017,7 +1225,7 @@ document
 
       if (
         !nome ||
-        !precoNumeros ||
+        !valorDigitado ||
         isNaN(preco)
       ) {
 
