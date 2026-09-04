@@ -23,6 +23,10 @@ let carrinho = [];
 let editandoId = null;
 let fotoSelecionada = null;
 
+// Guarda somente os números digitados no preço.
+// Exemplo: "1500" = R$ 1.500,00
+let precoNumeros = '';
+
 
 // =====================================================
 // CARREGAR PRODUTOS DO FIRESTORE
@@ -63,11 +67,41 @@ async function carregarProdutos() {
 
 
 // =====================================================
-// FORMATAÇÃO
+// FORMATAÇÃO DE PREÇO DOS PRODUTOS
 // =====================================================
 
 function formatar(v) {
-  return 'R$ ' + Number(v).toFixed(2).replace('.', ',');
+
+  return 'R$ ' +
+    Number(v).toLocaleString('pt-BR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+
+}
+
+
+// =====================================================
+// FORMATAR CAMPO DE PREÇO
+// =====================================================
+
+function formatarPrecoInput() {
+
+  if (!precoNumeros) {
+
+    campoPreco.value = '';
+
+    return;
+  }
+
+  const numero = Number(precoNumeros);
+
+  campoPreco.value =
+    'R$ ' +
+    numero.toLocaleString('pt-BR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
 }
 
 
@@ -156,11 +190,15 @@ function renderGrid() {
   `).join('') + `
 
     <button class="card-nova" id="abrirNovoProduto">
+
       <span>+</span>
+
       Adicionar peça
+
     </button>
 
   `;
+
 
   document
     .getElementById('abrirNovoProduto')
@@ -168,6 +206,7 @@ function renderGrid() {
       'click',
       () => abrirModal(null)
     );
+
 }
 
 
@@ -177,58 +216,75 @@ function renderGrid() {
 
 function renderCarrinho() {
 
-  const container = document.getElementById('drawerItens');
-  const badge = document.getElementById('cartBadge');
-  const subtotalEl = document.getElementById('subtotalValor');
+  const container =
+    document.getElementById('drawerItens');
 
-  badge.textContent = carrinho.length;
+  const badge =
+    document.getElementById('cartBadge');
 
-  container.innerHTML = carrinho.length === 0
+  const subtotalEl =
+    document.getElementById('subtotalValor');
 
-    ? '<p class="item-vazio">Sua sacola está vazia. Que tal dar uma olhada nas novidades?</p>'
 
-    : carrinho.map((item, i) => `
+  badge.textContent =
+    carrinho.length;
 
-      <div class="item">
 
-        <div class="item-thumb ${item.foto ? '' : item.cor || 'g1'}">
+  container.innerHTML =
+    carrinho.length === 0
 
-          ${
-            item.foto
-              ? `<img src="${item.foto}" alt="">`
-              : ''
-          }
+      ? `
+        <p class="item-vazio">
+          Sua sacola está vazia.
+          Que tal dar uma olhada nas novidades?
+        </p>
+      `
+
+      : carrinho.map((item, i) => `
+
+        <div class="item">
+
+          <div class="item-thumb ${item.foto ? '' : item.cor || 'g1'}">
+
+            ${
+              item.foto
+                ? `<img src="${item.foto}" alt="">`
+                : ''
+            }
+
+          </div>
+
+          <div class="item-info">
+
+            <div class="nome">
+              ${item.nome}
+            </div>
+
+            <div class="preco">
+              ${formatar(item.preco)}
+            </div>
+
+            <button
+              class="remover-btn"
+              data-index="${i}">
+              remover
+            </button>
+
+          </div>
 
         </div>
 
-        <div class="item-info">
+      `).join('');
 
-          <div class="nome">
-            ${item.nome}
-          </div>
 
-          <div class="preco">
-            ${formatar(item.preco)}
-          </div>
+  subtotalEl.textContent =
+    formatar(
+      carrinho.reduce(
+        (s, i) => s + Number(i.preco),
+        0
+      )
+    );
 
-          <button
-            class="remover-btn"
-            data-index="${i}">
-            remover
-          </button>
-
-        </div>
-
-      </div>
-
-    `).join('');
-
-  subtotalEl.textContent = formatar(
-    carrinho.reduce(
-      (s, i) => s + Number(i.preco),
-      0
-    )
-  );
 }
 
 
@@ -236,22 +292,30 @@ function renderCarrinho() {
 // DRAWER DO CARRINHO
 // =====================================================
 
-const drawer = document.getElementById('drawer');
-const overlay = document.getElementById('overlay');
+const drawer =
+  document.getElementById('drawer');
+
+const overlay =
+  document.getElementById('overlay');
+
 
 function abrirDrawer() {
 
   drawer.classList.add('aberto');
+
   overlay.classList.add('aberto');
 
 }
 
+
 function fecharDrawer() {
 
   drawer.classList.remove('aberto');
+
   overlay.classList.remove('aberto');
 
 }
+
 
 document
   .getElementById('abrirCarrinho')
@@ -260,12 +324,14 @@ document
     abrirDrawer
   );
 
+
 document
   .getElementById('fecharCarrinho')
   .addEventListener(
     'click',
     fecharDrawer
   );
+
 
 overlay.addEventListener(
   'click',
@@ -283,9 +349,14 @@ document
     'click',
     async (e) => {
 
-      const addBtn = e.target.closest('.add-btn');
-      const editBtn = e.target.closest('.editar-btn');
-      const delBtn = e.target.closest('.excluir-btn');
+      const addBtn =
+        e.target.closest('.add-btn');
+
+      const editBtn =
+        e.target.closest('.editar-btn');
+
+      const delBtn =
+        e.target.closest('.excluir-btn');
 
 
       // -----------------------------------------------
@@ -294,9 +365,10 @@ document
 
       if (addBtn) {
 
-        const p = produtos.find(
-          x => x.id === addBtn.dataset.id
-        );
+        const p =
+          produtos.find(
+            x => x.id === addBtn.dataset.id
+          );
 
         if (!p) return;
 
@@ -319,12 +391,15 @@ document
         document.body.classList.contains('modo-admin')
       ) {
 
-        const produto = produtos.find(
-          x => x.id === editBtn.dataset.id
-        );
+        const produto =
+          produtos.find(
+            x => x.id === editBtn.dataset.id
+          );
 
         if (produto) {
+
           abrirModal(produto);
+
         }
 
         return;
@@ -340,13 +415,16 @@ document
         document.body.classList.contains('modo-admin')
       ) {
 
-        const id = delBtn.dataset.id;
+        const id =
+          delBtn.dataset.id;
 
-        const produto = produtos.find(
-          x => x.id === id
-        );
+        const produto =
+          produtos.find(
+            x => x.id === id
+          );
 
         if (!produto) return;
+
 
         if (
           confirm(
@@ -358,9 +436,10 @@ document
 
             await excluirProduto(id);
 
-            produtos = produtos.filter(
-              x => x.id !== id
-            );
+            produtos =
+              produtos.filter(
+                x => x.id !== id
+              );
 
             renderGrid();
 
@@ -391,7 +470,8 @@ document
     'click',
     e => {
 
-      const btn = e.target.closest('.remover-btn');
+      const btn =
+        e.target.closest('.remover-btn');
 
       if (!btn) return;
 
@@ -401,6 +481,7 @@ document
       );
 
       renderCarrinho();
+
     }
   );
 
@@ -422,6 +503,7 @@ document
         '(Pix / cartão) quando conectarmos o backend. ' +
         'Por enquanto isso é uma demonstração visual!'
       );
+
     }
   );
 
@@ -429,8 +511,6 @@ document
 // =====================================================
 // MODO ADMIN — FIREBASE AUTHENTICATION
 // =====================================================
-
-// Entrar na área da loja
 
 document
   .getElementById('abrirAreaLoja')
@@ -440,22 +520,29 @@ document
 
       e.preventDefault();
 
-      const email = prompt(
-        'E-mail da loja:'
-      );
+
+      const email =
+        prompt(
+          'E-mail da loja:'
+        );
 
       if (email === null) return;
 
-      const senha = prompt(
-        'Senha da loja:'
-      );
+
+      const senha =
+        prompt(
+          'Senha da loja:'
+        );
 
       if (senha === null) return;
 
-      const sucesso = await fazerLogin(
-        email.trim(),
-        senha
-      );
+
+      const sucesso =
+        await fazerLogin(
+          email.trim(),
+          senha
+        );
+
 
       if (sucesso) {
 
@@ -476,7 +563,9 @@ document
         alert(
           'E-mail ou senha incorretos.'
         );
+
       }
+
     }
   );
 
@@ -501,6 +590,7 @@ observarLogin(
       );
 
     }
+
   }
 );
 
@@ -533,7 +623,9 @@ document
         alert(
           'Não foi possível sair da área da loja.'
         );
+
       }
+
     }
   );
 
@@ -565,27 +657,146 @@ const previewFoto =
 // MÁSCARA DE PREÇO
 // =====================================================
 
-campoPreco.addEventListener('input', () => {
+campoPreco.addEventListener(
+  'keydown',
+  e => {
 
-  let valor = campoPreco.value;
+    // Permite atalhos como Ctrl+A, Ctrl+C, Ctrl+V
+    if (
+      e.ctrlKey ||
+      e.metaKey
+    ) {
 
-  // Remove R$, pontos, vírgulas e qualquer outro caractere
-  valor = valor.replace(/\D/g, '');
+      // Ctrl+A será tratado quando o próximo
+      // número for digitado.
+      if (
+        e.key.toLowerCase() === 'a'
+      ) {
+        return;
+      }
 
-  if (!valor) {
-    campoPreco.value = '';
-    return;
+      return;
+    }
+
+
+    // Permitir teclas de navegação
+    if (
+      [
+        'Tab',
+        'Escape',
+        'Enter',
+        'ArrowLeft',
+        'ArrowRight',
+        'Home',
+        'End'
+      ].includes(e.key)
+    ) {
+      return;
+    }
+
+
+    // BACKSPACE
+    if (e.key === 'Backspace') {
+
+      e.preventDefault();
+
+      if (
+        campoPreco.selectionStart !==
+        campoPreco.selectionEnd
+      ) {
+
+        precoNumeros = '';
+
+      } else {
+
+        precoNumeros =
+          precoNumeros.slice(0, -1);
+
+      }
+
+      formatarPrecoInput();
+
+      return;
+    }
+
+
+    // DELETE
+    if (e.key === 'Delete') {
+
+      e.preventDefault();
+
+      precoNumeros = '';
+
+      formatarPrecoInput();
+
+      return;
+    }
+
+
+    // SOMENTE NÚMEROS
+    if (/^\d$/.test(e.key)) {
+
+      e.preventDefault();
+
+
+      // Se o usuário selecionou tudo,
+      // começa um novo preço.
+      if (
+        campoPreco.selectionStart !==
+        campoPreco.selectionEnd
+      ) {
+
+        precoNumeros = '';
+
+      }
+
+
+      precoNumeros += e.key;
+
+
+      // Limita para evitar números absurdamente grandes
+      if (precoNumeros.length > 12) {
+
+        precoNumeros =
+          precoNumeros.slice(0, 12);
+
+      }
+
+
+      formatarPrecoInput();
+
+    }
+
   }
+);
 
-  // Converte diretamente para número inteiro
-  const numero = Number(valor);
 
-  campoPreco.value = 'R$ ' + numero.toLocaleString('pt-BR', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  });
+// =====================================================
+// COLAR PREÇO
+// =====================================================
 
-});
+campoPreco.addEventListener(
+  'paste',
+  e => {
+
+    e.preventDefault();
+
+    const texto =
+      e.clipboardData.getData('text');
+
+    const numeros =
+      texto.replace(/\D/g, '');
+
+    if (!numeros) return;
+
+    precoNumeros =
+      numeros.slice(0, 12);
+
+    formatarPrecoInput();
+
+  }
+);
+
 
 // =====================================================
 // ABRIR MODAL
@@ -593,34 +804,61 @@ campoPreco.addEventListener('input', () => {
 
 function abrirModal(produto) {
 
-  editandoId = produto
-    ? produto.id
-    : null;
+  editandoId =
+    produto
+      ? produto.id
+      : null;
 
-  fotoSelecionada = produto
-    ? produto.foto || null
-    : null;
+
+  fotoSelecionada =
+    produto
+      ? produto.foto || null
+      : null;
+
 
   document.getElementById(
     'modalTitulo'
-  ).textContent = produto
-    ? 'Editar peça'
-    : 'Nova peça';
+  ).textContent =
+    produto
+      ? 'Editar peça'
+      : 'Nova peça';
 
-  campoNome.value = produto
-    ? produto.nome
-    : '';
 
-  campoCategoria.value = produto
-    ? produto.cat || ''
-    : '';
+  campoNome.value =
+    produto
+      ? produto.nome
+      : '';
 
-campoPreco.value = produto
-  ? 'R$ ' + Number(produto.preco).toLocaleString('pt-BR', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    })
-  : '';
+
+  campoCategoria.value =
+    produto
+      ? produto.cat || ''
+      : '';
+
+
+  // -----------------------------------------------
+  // PREÇO
+  // -----------------------------------------------
+
+  if (produto) {
+
+    precoNumeros =
+      String(
+        Math.round(
+          Number(produto.preco)
+        )
+      );
+
+    formatarPrecoInput();
+
+  } else {
+
+    precoNumeros = '';
+
+    campoPreco.value = '';
+
+  }
+
 
   campoFoto.value = '';
 
@@ -639,12 +877,14 @@ campoPreco.value = produto
 
     previewFoto.style.display =
       'none';
+
   }
 
 
   modalOverlay.classList.add(
     'aberto'
   );
+
 }
 
 
@@ -657,8 +897,13 @@ function fecharModal() {
   modalOverlay.classList.remove(
     'aberto'
   );
+
 }
 
+
+// =====================================================
+// CANCELAR MODAL
+// =====================================================
 
 document
   .getElementById('cancelarModal')
@@ -667,6 +912,10 @@ document
     fecharModal
   );
 
+
+// =====================================================
+// CLICAR FORA DO MODAL
+// =====================================================
 
 modalOverlay.addEventListener(
   'click',
@@ -677,7 +926,9 @@ modalOverlay.addEventListener(
     ) {
 
       fecharModal();
+
     }
+
   }
 );
 
@@ -695,8 +946,10 @@ campoFoto.addEventListener(
 
     if (!arquivo) return;
 
+
     const leitor =
       new FileReader();
+
 
     leitor.onload = () => {
 
@@ -708,11 +961,14 @@ campoFoto.addEventListener(
 
       previewFoto.style.display =
         'block';
+
     };
+
 
     leitor.readAsDataURL(
       arquivo
     );
+
   }
 );
 
@@ -730,15 +986,18 @@ document
       const nome =
         campoNome.value.trim();
 
+
       const cat =
         campoCategoria.value.trim() ||
         'Novidade';
 
+
+      // -----------------------------------------------
+      // PREÇO
+      // -----------------------------------------------
+
       const preco =
-  Number(
-    campoPreco.value
-      .replace(/\D/g, '')
-  );
+        Number(precoNumeros);
 
 
       // -----------------------------------------------
@@ -747,6 +1006,7 @@ document
 
       if (
         !nome ||
+        !precoNumeros ||
         isNaN(preco)
       ) {
 
@@ -758,14 +1018,19 @@ document
       }
 
 
-      // Desabilita o botão enquanto salva
+      // -----------------------------------------------
+      // DESABILITAR BOTÃO
+      // -----------------------------------------------
 
       const botao =
         document.getElementById(
           'salvarModal'
         );
 
-      botao.disabled = true;
+
+      botao.disabled =
+        true;
+
 
       botao.textContent =
         'Salvando...';
@@ -773,23 +1038,31 @@ document
 
       try {
 
-        // ---------------------------------------------
+
+        // =================================================
         // EDITAR PRODUTO
-        // ---------------------------------------------
+        // =================================================
 
         if (editandoId) {
 
           const dadosAtualizados = {
+
             nome,
+
             cat,
+
             preco
+
           };
+
 
           if (fotoSelecionada) {
 
             dadosAtualizados.foto =
               fotoSelecionada;
+
           }
+
 
           await editarProduto(
             editandoId,
@@ -803,20 +1076,26 @@ document
                 x.id === editandoId
             );
 
+
           if (indice !== -1) {
 
             produtos[indice] = {
+
               ...produtos[indice],
+
               ...dadosAtualizados
+
             };
+
           }
 
 
         } else {
 
-          // -------------------------------------------
+
+          // =================================================
           // NOVO PRODUTO
-          // -------------------------------------------
+          // =================================================
 
           const novoProduto = {
 
@@ -834,6 +1113,7 @@ document
 
             foto:
               fotoSelecionada || null
+
           };
 
 
@@ -846,12 +1126,13 @@ document
           produtos.push(
             produtoCriado
           );
+
         }
 
 
-        // ---------------------------------------------
-        // ATUALIZA A TELA
-        // ---------------------------------------------
+        // -----------------------------------------------
+        // ATUALIZAR TELA
+        // -----------------------------------------------
 
         renderGrid();
 
@@ -865,6 +1146,7 @@ document
           erro
         );
 
+
         alert(
           'Não consegui salvar o produto no Firebase.\n\n' +
           'Confira as regras do Firestore e a conexão com o Firebase.'
@@ -873,11 +1155,14 @@ document
 
       } finally {
 
-        botao.disabled = false;
+        botao.disabled =
+          false;
 
         botao.textContent =
           'Salvar peça';
+
       }
+
     }
   );
 
