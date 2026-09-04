@@ -1,23 +1,34 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Vimaglio — Brechó</title>
+  <meta charset="UTF-8">
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
 
-<link
-  href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=Public+Sans:wght@400;500;600;700&display=swap"
-  rel="stylesheet"
->
+  <title>Vimaglio — Brechó</title>
 
-<link rel="stylesheet" href="css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=Public+Sans:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  >
+
+  <link
+    rel="stylesheet"
+    href="css/style.css"
+  >
 
 </head>
 
+
 <body>
+
 
 <!-- =====================================================
      BANNER ADMIN
@@ -36,6 +47,7 @@
 </div>
 
 
+
 <!-- =====================================================
      CABEÇALHO
 ===================================================== -->
@@ -44,14 +56,20 @@
 
   <div class="header-inner">
 
-    <a href="#" class="logo serif">
+    <a
+      href="#"
+      class="logo serif"
+    >
       vim<span>aglio</span>
     </a>
 
 
     <nav>
 
-      <a href="#feminino" class="ativo">
+      <a
+        href="#feminino"
+        class="ativo"
+      >
         Feminino
       </a>
 
@@ -89,9 +107,17 @@
 
           <path d="M3 6h2l1.6 9.6a2 2 0 0 0 2 1.7h8.6a2 2 0 0 0 2-1.6L21 9H6"/>
 
-          <circle cx="9.5" cy="20" r="1.2"/>
+          <circle
+            cx="9.5"
+            cy="20"
+            r="1.2"
+          />
 
-          <circle cx="17.5" cy="20" r="1.2"/>
+          <circle
+            cx="17.5"
+            cy="20"
+            r="1.2"
+          />
 
         </svg>
 
@@ -110,6 +136,7 @@
   </div>
 
 </header>
+
 
 
 <!-- =====================================================
@@ -141,18 +168,18 @@
     <div class="hero-ctas">
 
       <a
-        href="#feminino"
+        href="#produtos"
         class="btn-primaria"
       >
-        Ver coleção feminina
+        Ver coleção
       </a>
 
 
       <a
-        href="#masculino"
+        href="#produtos"
         class="link-secundario"
       >
-        Ver masculino →
+        Ver peças →
       </a>
 
     </div>
@@ -170,38 +197,23 @@
       <div class="hangers">
 
         <div class="hanger">
-
           <div class="hook"></div>
-
           <div class="garment g1"></div>
-
         </div>
 
-
         <div class="hanger">
-
           <div class="hook"></div>
-
           <div class="garment g2"></div>
-
         </div>
 
-
         <div class="hanger">
-
           <div class="hook"></div>
-
           <div class="garment g3"></div>
-
         </div>
 
-
         <div class="hanger">
-
           <div class="hook"></div>
-
           <div class="garment g4"></div>
-
         </div>
 
       </div>
@@ -218,6 +230,7 @@
 </section>
 
 
+
 <!-- =====================================================
      CATEGORIAS
 ===================================================== -->
@@ -230,8 +243,7 @@
 
 
   <p class="sub">
-    A maior parte da nossa curadoria é feminina —
-    mas separamos um cantinho pra eles também.
+    Encontre uma peça pelo estilo ou categoria.
   </p>
 
 
@@ -307,6 +319,7 @@
 </section>
 
 
+
 <!-- =====================================================
      PRODUTOS
 ===================================================== -->
@@ -320,8 +333,12 @@
 
     <div>
 
+      <span class="catalogo-label">
+        catálogo
+      </span>
+
       <h2 class="serif">
-        Chegaram agora
+        Peças disponíveis
       </h2>
 
     </div>
@@ -338,14 +355,13 @@
   </div>
 
 
+
   <!-- ===================================================
        BUSCA E ORDENAÇÃO
   ==================================================== -->
 
-  <div
-    class="filtros-produtos"
-    id="filtrosProdutos"
-  >
+  <div class="catalogo-controles">
+
 
     <!-- BUSCA -->
 
@@ -385,12 +401,13 @@
     </div>
 
 
+
     <!-- ORDENAÇÃO -->
 
     <div class="ordenacao-produtos">
 
       <label for="ordenarProdutos">
-        Ordenar:
+        Ordenar
       </label>
 
 
@@ -426,8 +443,9 @@
   </div>
 
 
+
   <!-- ===================================================
-       INDICADOR DA BUSCA
+       INDICADOR
   ==================================================== -->
 
   <div
@@ -435,6 +453,7 @@
     id="resultadoFiltros"
     aria-live="polite"
   ></div>
+
 
 
   <!-- ===================================================
@@ -457,6 +476,54 @@
 </section>
 
 
+
+<!-- =====================================================
+     PEÇAS VENDIDAS
+===================================================== -->
+
+<section
+  class="vendidos"
+  id="vendidos"
+>
+
+  <div class="vendidos-head">
+
+    <div>
+
+      <span class="catalogo-label">
+        histórias que já encontraram dono
+      </span>
+
+      <h2 class="serif">
+        Peças vendidas
+      </h2>
+
+    </div>
+
+  </div>
+
+
+  <p class="vendidos-intro">
+    Algumas peças já seguiram para uma nova história.
+  </p>
+
+
+  <div
+    class="grid-vendidos"
+    id="gridVendidos"
+  >
+
+    <!--
+      Os produtos vendidos serão carregados
+      automaticamente pelo app.js.
+    -->
+
+  </div>
+
+</section>
+
+
+
 <!-- =====================================================
      POR QUE COMPRAR NUM BRECHÓ
 ===================================================== -->
@@ -472,6 +539,7 @@
 
 
   <div class="porque-grid">
+
 
     <div class="porque-item">
 
@@ -499,6 +567,7 @@
       </p>
 
     </div>
+
 
 
     <div class="porque-item">
@@ -535,6 +604,7 @@
     </div>
 
 
+
     <div class="porque-item">
 
       <svg
@@ -565,6 +635,7 @@
   </div>
 
 </section>
+
 
 
 <!-- =====================================================
@@ -613,6 +684,7 @@
 </section>
 
 
+
 <!-- =====================================================
      FOOTER
 ===================================================== -->
@@ -635,6 +707,7 @@
 </footer>
 
 
+
 <!-- =====================================================
      OVERLAY DO CARRINHO
 ===================================================== -->
@@ -643,6 +716,7 @@
   class="overlay"
   id="overlay"
 ></div>
+
 
 
 <!-- =====================================================
@@ -710,6 +784,7 @@
   </div>
 
 </aside>
+
 
 
 <!-- =====================================================
@@ -787,6 +862,7 @@
     <img
       id="previewFoto"
       class="preview-foto"
+      alt="Prévia da foto"
     >
 
 
@@ -814,6 +890,7 @@
 </div>
 
 
+
 <!-- =====================================================
      JAVASCRIPT
 ===================================================== -->
@@ -825,4 +902,5 @@
 
 
 </body>
+
 </html>
