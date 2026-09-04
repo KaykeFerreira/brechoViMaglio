@@ -1,221 +1,751 @@
-/* Vimaglio — aplicação principal
- * Etapa 1: o código original foi separado do HTML sem alterar a lógica.
- * Na próxima etapa, produtos/carrinho/admin serão extraídos para módulos.
- */
-const CORES_FALLBACK = ['g1','g2','g3','g4'];
-  const SEED = [
-    {id:1, nome:"Vestido midi floral", cat:"Vestidos", preco:89.90, cor:"g1", foto:null},
-    {id:2, nome:"Blusa de linho off-white", cat:"Blusas", preco:49.90, cor:"g4", foto:null},
-    {id:3, nome:"Saia plissê verde", cat:"Saias", preco:64.90, cor:"g2", foto:null},
-    {id:4, nome:"Casaco de lã caramelo", cat:"Casacos", preco:129.90, cor:"g3", foto:null},
-    {id:5, nome:"Camisa xadrez unissex", cat:"Masculino", preco:59.90, cor:"g4", foto:null},
-    {id:6, nome:"Vestido de festa vinho", cat:"Vestidos", preco:139.90, cor:"g1", foto:null},
-  ];
+import {
+  buscarProdutos,
+  adicionarProduto,
+  editarProduto,
+  excluirProduto
+} from "./produtos.js";
 
-  let produtos = [];
-  let carrinho = [];
-  let editandoId = null;
-  let fotoSelecionada = null;
 
-  async function carregarProdutos(){
-    try{
-      const res = await window.storage.get('produtos', true);
-      produtos = JSON.parse(res.value);
-    }catch(e){
-      produtos = SEED;
-      await salvarProdutos();
-    }
-    renderGrid();
-  }
+// =====================================================
+// CONFIGURAÇÕES
+// =====================================================
 
-  async function salvarProdutos(){
-    try{
-      await window.storage.set('produtos', JSON.stringify(produtos), true);
-    }catch(e){
-      console.error('erro ao salvar produtos', e);
-      alert('Não consegui salvar agora. Tenta de novo em instantes.');
-    }
-  }
+const CORES_FALLBACK = ['g1', 'g2', 'g3', 'g4'];
 
-  function formatar(v){ return 'R$ ' + Number(v).toFixed(2).replace('.', ','); }
+let produtos = [];
+let carrinho = [];
+let editandoId = null;
+let fotoSelecionada = null;
 
-  function thumbHtml(p){
-    return p.foto
-      ? `<img src="${p.foto}" alt="${p.nome}">`
-      : '';
-  }
 
-  function renderGrid(){
-    const grid = document.getElementById('gridProdutos');
-    grid.innerHTML = produtos.map(p => `
-      <div class="card">
-        <div class="card-thumb ${p.foto ? '' : p.cor}">
-          ${thumbHtml(p)}
-          <span class="card-tag">${p.cat}</span>
-          <div class="card-admin-actions">
-            <button class="editar-btn" data-id="${p.id}" aria-label="Editar ${p.nome}">✎</button>
-            <button class="excluir-btn" data-id="${p.id}" aria-label="Excluir ${p.nome}">✕</button>
-          </div>
-        </div>
-        <div class="card-body">
-          <span class="card-cat">brechó · tamanho único</span>
-          <h3 class="card-nome">${p.nome}</h3>
-          <div class="card-footer">
-            <span class="card-preco">${formatar(p.preco)}</span>
-            <button class="add-btn" data-id="${p.id}" aria-label="Adicionar ${p.nome} à sacola">+</button>
-          </div>
-        </div>
-      </div>
-    `).join('') + `
-      <button class="card-nova" id="abrirNovoProduto"><span>+</span>Adicionar peça</button>
+// =====================================================
+// CARREGAR PRODUTOS DO FIRESTORE
+// =====================================================
+
+async function carregarProdutos() {
+  const grid = document.getElementById('gridProdutos');
+
+  try {
+    grid.innerHTML = `
+      <p style="color:var(--tinta-suave); grid-column:1/-1;">
+        Carregando peças...
+      </p>
     `;
-    document.getElementById('abrirNovoProduto')?.addEventListener('click', () => abrirModal(null));
-  }
 
-  function renderCarrinho(){
-    const container = document.getElementById('drawerItens');
-    const badge = document.getElementById('cartBadge');
-    const subtotalEl = document.getElementById('subtotalValor');
-    badge.textContent = carrinho.length;
-    container.innerHTML = carrinho.length === 0
-      ? '<p class="item-vazio">Sua sacola está vazia. Que tal dar uma olhada nas novidades?</p>'
-      : carrinho.map((item, i) => `
-        <div class="item">
-          <div class="item-thumb ${item.foto ? '' : item.cor}">${item.foto ? `<img src="${item.foto}" alt="">` : ''}</div>
-          <div class="item-info">
-            <div class="nome">${item.nome}</div>
-            <div class="preco">${formatar(item.preco)}</div>
-            <button class="remover-btn" data-index="${i}">remover</button>
-          </div>
+    produtos = await buscarProdutos();
+
+    renderGrid();
+
+  } catch (erro) {
+
+    console.error("Erro ao carregar produtos:", erro);
+
+    grid.innerHTML = `
+      <p style="color:var(--tinta-suave); grid-column:1/-1;">
+        Não foi possível carregar os produtos.
+      </p>
+    `;
+
+    alert(
+      "Não consegui conectar ao banco de produtos. " +
+      "Verifique a configuração do Firebase."
+    );
+  }
+}
+
+
+// =====================================================
+// FORMATAÇÃO
+// =====================================================
+
+function formatar(v) {
+  return 'R$ ' + Number(v).toFixed(2).replace('.', ',');
+}
+
+
+// =====================================================
+// FOTO
+// =====================================================
+
+function thumbHtml(p) {
+  return p.foto
+    ? `<img src="${p.foto}" alt="${p.nome}">`
+    : '';
+}
+
+
+// =====================================================
+// RENDERIZAR PRODUTOS
+// =====================================================
+
+function renderGrid() {
+
+  const grid = document.getElementById('gridProdutos');
+
+  grid.innerHTML = produtos.map(p => `
+    <div class="card">
+
+      <div class="card-thumb ${p.foto ? '' : p.cor || 'g1'}">
+
+        ${thumbHtml(p)}
+
+        <span class="card-tag">
+          ${p.cat || 'Novidade'}
+        </span>
+
+        <div class="card-admin-actions">
+
+          <button
+            class="editar-btn"
+            data-id="${p.id}"
+            aria-label="Editar ${p.nome}">
+            ✎
+          </button>
+
+          <button
+            class="excluir-btn"
+            data-id="${p.id}"
+            aria-label="Excluir ${p.nome}">
+            ✕
+          </button>
+
         </div>
-      `).join('');
-    subtotalEl.textContent = formatar(carrinho.reduce((s, i) => s + i.preco, 0));
-  }
 
-  // carrinho: abrir/fechar
-  const drawer = document.getElementById('drawer');
-  const overlay = document.getElementById('overlay');
-  function abrirDrawer(){ drawer.classList.add('aberto'); overlay.classList.add('aberto'); }
-  function fecharDrawer(){ drawer.classList.remove('aberto'); overlay.classList.remove('aberto'); }
-  document.getElementById('abrirCarrinho').addEventListener('click', abrirDrawer);
-  document.getElementById('fecharCarrinho').addEventListener('click', fecharDrawer);
-  overlay.addEventListener('click', fecharDrawer);
+      </div>
 
-  document.getElementById('gridProdutos').addEventListener('click', e => {
+      <div class="card-body">
+
+        <span class="card-cat">
+          brechó · tamanho único
+        </span>
+
+        <h3 class="card-nome">
+          ${p.nome}
+        </h3>
+
+        <div class="card-footer">
+
+          <span class="card-preco">
+            ${formatar(p.preco)}
+          </span>
+
+          <button
+            class="add-btn"
+            data-id="${p.id}"
+            aria-label="Adicionar ${p.nome} à sacola">
+            +
+          </button>
+
+        </div>
+
+      </div>
+
+    </div>
+  `).join('') + `
+
+    <button class="card-nova" id="abrirNovoProduto">
+      <span>+</span>
+      Adicionar peça
+    </button>
+  `;
+
+  document
+    .getElementById('abrirNovoProduto')
+    ?.addEventListener('click', () => abrirModal(null));
+}
+
+
+// =====================================================
+// CARRINHO
+// =====================================================
+
+function renderCarrinho() {
+
+  const container = document.getElementById('drawerItens');
+  const badge = document.getElementById('cartBadge');
+  const subtotalEl = document.getElementById('subtotalValor');
+
+  badge.textContent = carrinho.length;
+
+  container.innerHTML = carrinho.length === 0
+
+    ? '<p class="item-vazio">Sua sacola está vazia. Que tal dar uma olhada nas novidades?</p>'
+
+    : carrinho.map((item, i) => `
+
+      <div class="item">
+
+        <div class="item-thumb ${item.foto ? '' : item.cor || 'g1'}">
+
+          ${
+            item.foto
+              ? `<img src="${item.foto}" alt="">`
+              : ''
+          }
+
+        </div>
+
+        <div class="item-info">
+
+          <div class="nome">
+            ${item.nome}
+          </div>
+
+          <div class="preco">
+            ${formatar(item.preco)}
+          </div>
+
+          <button
+            class="remover-btn"
+            data-index="${i}">
+            remover
+          </button>
+
+        </div>
+
+      </div>
+
+    `).join('');
+
+  subtotalEl.textContent = formatar(
+    carrinho.reduce((s, i) => s + Number(i.preco), 0)
+  );
+}
+
+
+// =====================================================
+// DRAWER DO CARRINHO
+// =====================================================
+
+const drawer = document.getElementById('drawer');
+const overlay = document.getElementById('overlay');
+
+function abrirDrawer() {
+  drawer.classList.add('aberto');
+  overlay.classList.add('aberto');
+}
+
+function fecharDrawer() {
+  drawer.classList.remove('aberto');
+  overlay.classList.remove('aberto');
+}
+
+document
+  .getElementById('abrirCarrinho')
+  .addEventListener('click', abrirDrawer);
+
+document
+  .getElementById('fecharCarrinho')
+  .addEventListener('click', fecharDrawer);
+
+overlay.addEventListener('click', fecharDrawer);
+
+
+// =====================================================
+// CLIQUES NOS PRODUTOS
+// =====================================================
+
+document
+  .getElementById('gridProdutos')
+  .addEventListener('click', async (e) => {
+
     const addBtn = e.target.closest('.add-btn');
     const editBtn = e.target.closest('.editar-btn');
     const delBtn = e.target.closest('.excluir-btn');
-    if(addBtn){
-      const p = produtos.find(x => x.id === Number(addBtn.dataset.id));
+
+
+    // -----------------------------------------------
+    // ADICIONAR AO CARRINHO
+    // -----------------------------------------------
+
+    if (addBtn) {
+
+      const p = produtos.find(
+        x => x.id === addBtn.dataset.id
+      );
+
+      if (!p) return;
+
       carrinho.push(p);
+
       renderCarrinho();
+
       abrirDrawer();
+
+      return;
     }
-    if(editBtn && document.body.classList.contains('modo-admin')){
-      abrirModal(produtos.find(x => x.id === Number(editBtn.dataset.id)));
+
+
+    // -----------------------------------------------
+    // EDITAR
+    // -----------------------------------------------
+
+    if (
+      editBtn &&
+      document.body.classList.contains('modo-admin')
+    ) {
+
+      const produto = produtos.find(
+        x => x.id === editBtn.dataset.id
+      );
+
+      if (produto) {
+        abrirModal(produto);
+      }
+
+      return;
     }
-    if(delBtn && document.body.classList.contains('modo-admin')){
-      if(confirm('Remover essa peça da loja?')){
-        produtos = produtos.filter(x => x.id !== Number(delBtn.dataset.id));
-        salvarProdutos();
-        renderGrid();
+
+
+    // -----------------------------------------------
+    // EXCLUIR
+    // -----------------------------------------------
+
+    if (
+      delBtn &&
+      document.body.classList.contains('modo-admin')
+    ) {
+
+      const id = delBtn.dataset.id;
+
+      const produto = produtos.find(
+        x => x.id === id
+      );
+
+      if (!produto) return;
+
+      if (
+        confirm(`Remover "${produto.nome}" da loja?`)
+      ) {
+
+        try {
+
+          await excluirProduto(id);
+
+          produtos = produtos.filter(
+            x => x.id !== id
+          );
+
+          renderGrid();
+
+        } catch (erro) {
+
+          console.error(
+            "Erro ao excluir produto:",
+            erro
+          );
+
+          alert(
+            "Não foi possível excluir o produto."
+          );
+        }
       }
     }
   });
 
-  document.getElementById('drawerItens').addEventListener('click', e => {
+
+// =====================================================
+// REMOVER DO CARRINHO
+// =====================================================
+
+document
+  .getElementById('drawerItens')
+  .addEventListener('click', e => {
+
     const btn = e.target.closest('.remover-btn');
-    if(!btn) return;
-    carrinho.splice(Number(btn.dataset.index), 1);
+
+    if (!btn) return;
+
+    carrinho.splice(
+      Number(btn.dataset.index),
+      1
+    );
+
     renderCarrinho();
   });
 
-  document.getElementById('finalizarBtn').addEventListener('click', () => {
-    if(carrinho.length === 0) return;
-    alert('Aqui vai entrar o pagamento de verdade (Pix / cartão) quando conectarmos o backend. Por enquanto isso é só uma demonstração visual!');
+
+// =====================================================
+// FINALIZAR COMPRA
+// =====================================================
+
+document
+  .getElementById('finalizarBtn')
+  .addEventListener('click', () => {
+
+    if (carrinho.length === 0) return;
+
+    alert(
+      'Aqui vai entrar o pagamento de verdade ' +
+      '(Pix / cartão) quando conectarmos o backend. ' +
+      'Por enquanto isso é uma demonstração visual!'
+    );
   });
 
-  // modo loja (admin)
-  const SENHA_DEMO = 'vimaglio123';
-  document.getElementById('abrirAreaLoja').addEventListener('click', e => {
+
+// =====================================================
+// MODO ADMIN — TEMPORÁRIO
+// =====================================================
+//
+// ATENÇÃO:
+// Esta senha ainda será removida.
+// Na próxima etapa vamos colocar Firebase Authentication.
+//
+
+const SENHA_DEMO = 'vimaglio123';
+
+document
+  .getElementById('abrirAreaLoja')
+  .addEventListener('click', e => {
+
     e.preventDefault();
-    const senha = prompt('Senha da área da loja:');
-    if(senha === null) return;
-    if(senha === SENHA_DEMO){
-      document.body.classList.add('modo-admin');
+
+    const senha = prompt(
+      'Senha da área da loja:'
+    );
+
+    if (senha === null) return;
+
+    if (senha === SENHA_DEMO) {
+
+      document.body.classList.add(
+        'modo-admin'
+      );
+
     } else {
+
       alert('Senha incorreta.');
     }
   });
-  document.getElementById('sairAdmin').addEventListener('click', () => {
-    document.body.classList.remove('modo-admin');
+
+
+document
+  .getElementById('sairAdmin')
+  .addEventListener('click', () => {
+
+    document.body.classList.remove(
+      'modo-admin'
+    );
   });
 
-  // modal de adicionar/editar peça
-  const modalOverlay = document.getElementById('modalOverlay');
-  const campoNome = document.getElementById('campoNome');
-  const campoCategoria = document.getElementById('campoCategoria');
-  const campoPreco = document.getElementById('campoPreco');
-  const campoFoto = document.getElementById('campoFoto');
-  const previewFoto = document.getElementById('previewFoto');
 
-  function abrirModal(produto){
-    editandoId = produto ? produto.id : null;
-    fotoSelecionada = produto ? produto.foto : null;
-    document.getElementById('modalTitulo').textContent = produto ? 'Editar peça' : 'Nova peça';
-    campoNome.value = produto ? produto.nome : '';
-    campoCategoria.value = produto ? produto.cat : '';
-    campoPreco.value = produto ? produto.preco : '';
-    campoFoto.value = '';
-    if(fotoSelecionada){
-      previewFoto.src = fotoSelecionada;
-      previewFoto.style.display = 'block';
-    } else {
-      previewFoto.style.display = 'none';
-    }
-    modalOverlay.classList.add('aberto');
+// =====================================================
+// MODAL
+// =====================================================
+
+const modalOverlay =
+  document.getElementById('modalOverlay');
+
+const campoNome =
+  document.getElementById('campoNome');
+
+const campoCategoria =
+  document.getElementById('campoCategoria');
+
+const campoPreco =
+  document.getElementById('campoPreco');
+
+const campoFoto =
+  document.getElementById('campoFoto');
+
+const previewFoto =
+  document.getElementById('previewFoto');
+
+
+// =====================================================
+// ABRIR MODAL
+// =====================================================
+
+function abrirModal(produto) {
+
+  editandoId = produto
+    ? produto.id
+    : null;
+
+  fotoSelecionada = produto
+    ? produto.foto || null
+    : null;
+
+  document.getElementById(
+    'modalTitulo'
+  ).textContent = produto
+    ? 'Editar peça'
+    : 'Nova peça';
+
+  campoNome.value = produto
+    ? produto.nome
+    : '';
+
+  campoCategoria.value = produto
+    ? produto.cat || ''
+    : '';
+
+  campoPreco.value = produto
+    ? produto.preco
+    : '';
+
+  campoFoto.value = '';
+
+
+  if (fotoSelecionada) {
+
+    previewFoto.src =
+      fotoSelecionada;
+
+    previewFoto.style.display =
+      'block';
+
+  } else {
+
+    previewFoto.src = '';
+
+    previewFoto.style.display =
+      'none';
   }
-  function fecharModal(){ modalOverlay.classList.remove('aberto'); }
 
-  document.getElementById('cancelarModal').addEventListener('click', fecharModal);
-  modalOverlay.addEventListener('click', e => { if(e.target === modalOverlay) fecharModal(); });
 
-  campoFoto.addEventListener('change', () => {
-    const arquivo = campoFoto.files[0];
-    if(!arquivo) return;
-    const leitor = new FileReader();
+  modalOverlay.classList.add(
+    'aberto'
+  );
+}
+
+
+// =====================================================
+// FECHAR MODAL
+// =====================================================
+
+function fecharModal() {
+
+  modalOverlay.classList.remove(
+    'aberto'
+  );
+}
+
+
+document
+  .getElementById('cancelarModal')
+  .addEventListener(
+    'click',
+    fecharModal
+  );
+
+
+modalOverlay.addEventListener(
+  'click',
+  e => {
+
+    if (
+      e.target === modalOverlay
+    ) {
+      fecharModal();
+    }
+  }
+);
+
+
+// =====================================================
+// SELECIONAR FOTO
+// =====================================================
+
+campoFoto.addEventListener(
+  'change',
+  () => {
+
+    const arquivo =
+      campoFoto.files[0];
+
+    if (!arquivo) return;
+
+    const leitor =
+      new FileReader();
+
     leitor.onload = () => {
-      fotoSelecionada = leitor.result;
-      previewFoto.src = fotoSelecionada;
-      previewFoto.style.display = 'block';
+
+      fotoSelecionada =
+        leitor.result;
+
+      previewFoto.src =
+        fotoSelecionada;
+
+      previewFoto.style.display =
+        'block';
     };
-    leitor.readAsDataURL(arquivo);
-  });
 
-  document.getElementById('salvarModal').addEventListener('click', async () => {
-    const nome = campoNome.value.trim();
-    const cat = campoCategoria.value.trim() || 'Novidade';
-    const preco = parseFloat(campoPreco.value);
-    if(!nome || isNaN(preco)){
-      alert('Preencha ao menos o nome e o preço da peça.');
-      return;
-    }
-    if(editandoId){
-      const p = produtos.find(x => x.id === editandoId);
-      p.nome = nome; p.cat = cat; p.preco = preco;
-      if(fotoSelecionada) p.foto = fotoSelecionada;
-    } else {
-      produtos.push({
-        id: Date.now(),
-        nome, cat, preco,
-        cor: CORES_FALLBACK[produtos.length % CORES_FALLBACK.length],
-        foto: fotoSelecionada
-      });
-    }
-    await salvarProdutos();
-    renderGrid();
-    fecharModal();
-  });
+    leitor.readAsDataURL(
+      arquivo
+    );
+  }
+);
 
-  carregarProdutos();
-  renderCarrinho();
+
+// =====================================================
+// SALVAR PRODUTO
+// =====================================================
+
+document
+  .getElementById('salvarModal')
+  .addEventListener(
+    'click',
+    async () => {
+
+      const nome =
+        campoNome.value.trim();
+
+      const cat =
+        campoCategoria.value.trim() ||
+        'Novidade';
+
+      const preco =
+        parseFloat(
+          campoPreco.value
+        );
+
+
+      // -----------------------------------------------
+      // VALIDAÇÃO
+      // -----------------------------------------------
+
+      if (
+        !nome ||
+        isNaN(preco)
+      ) {
+
+        alert(
+          'Preencha ao menos o nome e o preço da peça.'
+        );
+
+        return;
+      }
+
+
+      // Desabilita o botão enquanto salva
+
+      const botao =
+        document.getElementById(
+          'salvarModal'
+        );
+
+      botao.disabled = true;
+
+      botao.textContent =
+        'Salvando...';
+
+
+      try {
+
+        // ---------------------------------------------
+        // EDITAR PRODUTO
+        // ---------------------------------------------
+
+        if (editandoId) {
+
+          const dadosAtualizados = {
+            nome,
+            cat,
+            preco
+          };
+
+          if (fotoSelecionada) {
+
+            dadosAtualizados.foto =
+              fotoSelecionada;
+          }
+
+          await editarProduto(
+            editandoId,
+            dadosAtualizados
+          );
+
+
+          const indice =
+            produtos.findIndex(
+              x =>
+                x.id === editandoId
+            );
+
+          if (indice !== -1) {
+
+            produtos[indice] = {
+              ...produtos[indice],
+              ...dadosAtualizados
+            };
+          }
+
+
+        } else {
+
+          // -------------------------------------------
+          // NOVO PRODUTO
+          // -------------------------------------------
+
+          const novoProduto = {
+
+            nome,
+
+            cat,
+
+            preco,
+
+            cor:
+              CORES_FALLBACK[
+                produtos.length %
+                CORES_FALLBACK.length
+              ],
+
+            foto:
+              fotoSelecionada || null
+          };
+
+
+          const produtoCriado =
+            await adicionarProduto(
+              novoProduto
+            );
+
+
+          produtos.push(
+            produtoCriado
+          );
+        }
+
+
+        // ---------------------------------------------
+        // ATUALIZA A TELA
+        // ---------------------------------------------
+
+        renderGrid();
+
+        fecharModal();
+
+
+      } catch (erro) {
+
+        console.error(
+          'Erro ao salvar produto:',
+          erro
+        );
+
+        alert(
+          'Não consegui salvar o produto no Firebase.\n\n' +
+          'Confira as regras do Firestore e a conexão com o Firebase.'
+        );
+
+
+      } finally {
+
+        botao.disabled = false;
+
+        botao.textContent =
+          'Salvar peça';
+      }
+    }
+  );
+
+
+// =====================================================
+// INICIAR
+// =====================================================
+
+carregarProdutos();
+
+renderCarrinho();
