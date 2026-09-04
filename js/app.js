@@ -96,14 +96,25 @@ function formatarPrecoInput() {
 
   const numero = Number(precoNumeros);
 
-  campoPreco.value =
-    'R$ ' +
+  const valorFormatado =
     numero.toLocaleString('pt-BR', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
     });
-}
 
+  campoPreco.value =
+    'R$ ' + valorFormatado;
+
+  // Coloca o cursor antes da parte ",00"
+  // acompanhando o número digitado
+  const posicao =
+    campoPreco.value.length - 3;
+
+  campoPreco.setSelectionRange(
+    posicao,
+    posicao
+  );
+}
 
 // =====================================================
 // FOTO
