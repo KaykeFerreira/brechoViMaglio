@@ -5,6 +5,12 @@ import {
   excluirProduto
 } from "./produtos.js";
 
+import {
+  fazerLogin,
+  sair,
+  observarLogin
+} from "./admin.js";
+
 
 // =====================================================
 // CONFIGURAÇÕES
@@ -23,9 +29,11 @@ let fotoSelecionada = null;
 // =====================================================
 
 async function carregarProdutos() {
+
   const grid = document.getElementById('gridProdutos');
 
   try {
+
     grid.innerHTML = `
       <p style="color:var(--tinta-suave); grid-column:1/-1;">
         Carregando peças...
@@ -68,9 +76,11 @@ function formatar(v) {
 // =====================================================
 
 function thumbHtml(p) {
+
   return p.foto
     ? `<img src="${p.foto}" alt="${p.nome}">`
     : '';
+
 }
 
 
@@ -83,6 +93,7 @@ function renderGrid() {
   const grid = document.getElementById('gridProdutos');
 
   grid.innerHTML = produtos.map(p => `
+
     <div class="card">
 
       <div class="card-thumb ${p.foto ? '' : p.cor || 'g1'}">
@@ -141,17 +152,22 @@ function renderGrid() {
       </div>
 
     </div>
+
   `).join('') + `
 
     <button class="card-nova" id="abrirNovoProduto">
       <span>+</span>
       Adicionar peça
     </button>
+
   `;
 
   document
     .getElementById('abrirNovoProduto')
-    ?.addEventListener('click', () => abrirModal(null));
+    ?.addEventListener(
+      'click',
+      () => abrirModal(null)
+    );
 }
 
 
@@ -208,7 +224,10 @@ function renderCarrinho() {
     `).join('');
 
   subtotalEl.textContent = formatar(
-    carrinho.reduce((s, i) => s + Number(i.preco), 0)
+    carrinho.reduce(
+      (s, i) => s + Number(i.preco),
+      0
+    )
   );
 }
 
@@ -221,24 +240,37 @@ const drawer = document.getElementById('drawer');
 const overlay = document.getElementById('overlay');
 
 function abrirDrawer() {
+
   drawer.classList.add('aberto');
   overlay.classList.add('aberto');
+
 }
 
 function fecharDrawer() {
+
   drawer.classList.remove('aberto');
   overlay.classList.remove('aberto');
+
 }
 
 document
   .getElementById('abrirCarrinho')
-  .addEventListener('click', abrirDrawer);
+  .addEventListener(
+    'click',
+    abrirDrawer
+  );
 
 document
   .getElementById('fecharCarrinho')
-  .addEventListener('click', fecharDrawer);
+  .addEventListener(
+    'click',
+    fecharDrawer
+  );
 
-overlay.addEventListener('click', fecharDrawer);
+overlay.addEventListener(
+  'click',
+  fecharDrawer
+);
 
 
 // =====================================================
@@ -247,101 +279,106 @@ overlay.addEventListener('click', fecharDrawer);
 
 document
   .getElementById('gridProdutos')
-  .addEventListener('click', async (e) => {
+  .addEventListener(
+    'click',
+    async (e) => {
 
-    const addBtn = e.target.closest('.add-btn');
-    const editBtn = e.target.closest('.editar-btn');
-    const delBtn = e.target.closest('.excluir-btn');
-
-
-    // -----------------------------------------------
-    // ADICIONAR AO CARRINHO
-    // -----------------------------------------------
-
-    if (addBtn) {
-
-      const p = produtos.find(
-        x => x.id === addBtn.dataset.id
-      );
-
-      if (!p) return;
-
-      carrinho.push(p);
-
-      renderCarrinho();
-
-      abrirDrawer();
-
-      return;
-    }
+      const addBtn = e.target.closest('.add-btn');
+      const editBtn = e.target.closest('.editar-btn');
+      const delBtn = e.target.closest('.excluir-btn');
 
 
-    // -----------------------------------------------
-    // EDITAR
-    // -----------------------------------------------
+      // -----------------------------------------------
+      // ADICIONAR AO CARRINHO
+      // -----------------------------------------------
 
-    if (
-      editBtn &&
-      document.body.classList.contains('modo-admin')
-    ) {
+      if (addBtn) {
 
-      const produto = produtos.find(
-        x => x.id === editBtn.dataset.id
-      );
+        const p = produtos.find(
+          x => x.id === addBtn.dataset.id
+        );
 
-      if (produto) {
-        abrirModal(produto);
+        if (!p) return;
+
+        carrinho.push(p);
+
+        renderCarrinho();
+
+        abrirDrawer();
+
+        return;
       }
 
-      return;
-    }
 
-
-    // -----------------------------------------------
-    // EXCLUIR
-    // -----------------------------------------------
-
-    if (
-      delBtn &&
-      document.body.classList.contains('modo-admin')
-    ) {
-
-      const id = delBtn.dataset.id;
-
-      const produto = produtos.find(
-        x => x.id === id
-      );
-
-      if (!produto) return;
+      // -----------------------------------------------
+      // EDITAR
+      // -----------------------------------------------
 
       if (
-        confirm(`Remover "${produto.nome}" da loja?`)
+        editBtn &&
+        document.body.classList.contains('modo-admin')
       ) {
 
-        try {
+        const produto = produtos.find(
+          x => x.id === editBtn.dataset.id
+        );
 
-          await excluirProduto(id);
+        if (produto) {
+          abrirModal(produto);
+        }
 
-          produtos = produtos.filter(
-            x => x.id !== id
-          );
+        return;
+      }
 
-          renderGrid();
 
-        } catch (erro) {
+      // -----------------------------------------------
+      // EXCLUIR
+      // -----------------------------------------------
 
-          console.error(
-            "Erro ao excluir produto:",
-            erro
-          );
+      if (
+        delBtn &&
+        document.body.classList.contains('modo-admin')
+      ) {
 
-          alert(
-            "Não foi possível excluir o produto."
-          );
+        const id = delBtn.dataset.id;
+
+        const produto = produtos.find(
+          x => x.id === id
+        );
+
+        if (!produto) return;
+
+        if (
+          confirm(
+            `Remover "${produto.nome}" da loja?`
+          )
+        ) {
+
+          try {
+
+            await excluirProduto(id);
+
+            produtos = produtos.filter(
+              x => x.id !== id
+            );
+
+            renderGrid();
+
+          } catch (erro) {
+
+            console.error(
+              "Erro ao excluir produto:",
+              erro
+            );
+
+            alert(
+              "Não foi possível excluir o produto."
+            );
+          }
         }
       }
     }
-  });
+  );
 
 
 // =====================================================
@@ -350,19 +387,22 @@ document
 
 document
   .getElementById('drawerItens')
-  .addEventListener('click', e => {
+  .addEventListener(
+    'click',
+    e => {
 
-    const btn = e.target.closest('.remover-btn');
+      const btn = e.target.closest('.remover-btn');
 
-    if (!btn) return;
+      if (!btn) return;
 
-    carrinho.splice(
-      Number(btn.dataset.index),
-      1
-    );
+      carrinho.splice(
+        Number(btn.dataset.index),
+        1
+      );
 
-    renderCarrinho();
-  });
+      renderCarrinho();
+    }
+  );
 
 
 // =====================================================
@@ -371,42 +411,84 @@ document
 
 document
   .getElementById('finalizarBtn')
-  .addEventListener('click', () => {
+  .addEventListener(
+    'click',
+    () => {
 
-    if (carrinho.length === 0) return;
+      if (carrinho.length === 0) return;
 
-    alert(
-      'Aqui vai entrar o pagamento de verdade ' +
-      '(Pix / cartão) quando conectarmos o backend. ' +
-      'Por enquanto isso é uma demonstração visual!'
-    );
-  });
+      alert(
+        'Aqui vai entrar o pagamento de verdade ' +
+        '(Pix / cartão) quando conectarmos o backend. ' +
+        'Por enquanto isso é uma demonstração visual!'
+      );
+    }
+  );
 
 
 // =====================================================
-// MODO ADMIN — TEMPORÁRIO
+// MODO ADMIN — FIREBASE AUTHENTICATION
 // =====================================================
-//
-// ATENÇÃO:
-// Esta senha ainda será removida.
-// Na próxima etapa vamos colocar Firebase Authentication.
-//
 
-const SENHA_DEMO = 'vimaglio123';
+// Entrar na área da loja
 
 document
   .getElementById('abrirAreaLoja')
-  .addEventListener('click', e => {
+  .addEventListener(
+    'click',
+    async e => {
 
-    e.preventDefault();
+      e.preventDefault();
 
-    const senha = prompt(
-      'Senha da área da loja:'
-    );
+      const email = prompt(
+        'E-mail da loja:'
+      );
 
-    if (senha === null) return;
+      if (email === null) return;
 
-    if (senha === SENHA_DEMO) {
+      const senha = prompt(
+        'Senha da loja:'
+      );
+
+      if (senha === null) return;
+
+      const sucesso = await fazerLogin(
+        email.trim(),
+        senha
+      );
+
+      if (sucesso) {
+
+        document.body.classList.add(
+          'modo-admin'
+        );
+
+        alert(
+          'Login realizado com sucesso!'
+        );
+
+      } else {
+
+        document.body.classList.remove(
+          'modo-admin'
+        );
+
+        alert(
+          'E-mail ou senha incorretos.'
+        );
+      }
+    }
+  );
+
+
+// =====================================================
+// OBSERVAR ESTADO DO LOGIN
+// =====================================================
+
+observarLogin(
+  usuario => {
+
+    if (usuario) {
 
       document.body.classList.add(
         'modo-admin'
@@ -414,19 +496,46 @@ document
 
     } else {
 
-      alert('Senha incorreta.');
-    }
-  });
+      document.body.classList.remove(
+        'modo-admin'
+      );
 
+    }
+  }
+);
+
+
+// =====================================================
+// SAIR DA ÁREA ADMIN
+// =====================================================
 
 document
   .getElementById('sairAdmin')
-  .addEventListener('click', () => {
+  .addEventListener(
+    'click',
+    async () => {
 
-    document.body.classList.remove(
-      'modo-admin'
-    );
-  });
+      try {
+
+        await sair();
+
+        document.body.classList.remove(
+          'modo-admin'
+        );
+
+      } catch (erro) {
+
+        console.error(
+          'Erro ao sair:',
+          erro
+        );
+
+        alert(
+          'Não foi possível sair da área da loja.'
+        );
+      }
+    }
+  );
 
 
 // =====================================================
@@ -537,6 +646,7 @@ modalOverlay.addEventListener(
     if (
       e.target === modalOverlay
     ) {
+
       fecharModal();
     }
   }
